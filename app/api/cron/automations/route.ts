@@ -8,8 +8,9 @@ export const dynamic = "force-dynamic";
 
 /**
  * Automações agendadas (painel → Automação): lembrete 24 h antes e aniversários.
- * Chamar de hora a hora com o cabeçalho  Authorization: Bearer <CRON_SECRET>
- * (na Vercel: vercel.json → crons; ela envia o CRON_SECRET sozinha).
+ * Corre uma vez por dia (~9h de Lisboa; o plano Hobby da Vercel só permite crons diários)
+ * com o cabeçalho  Authorization: Bearer <CRON_SECRET>  (a Vercel envia-o sozinha).
+ * O lembrete vai para todas as marcações confirmadas de amanhã.
  */
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -34,8 +35,9 @@ export async function GET(request: NextRequest) {
          left join public.profiles p on p.id = a.client_id
          join public.services sv on sv.id = a.service_id
         where a.status = 'confirmed' and a.reminder_sent_at is null
-          and a.start_time between now() + interval '20 hours' and now() + interval '26 hours'
+          and (a.start_time at time zone $1)::date = (now() at time zone $1)::date + 1
           and coalesce(p.phone, a.guest_phone) is not null`,
+      [s.timezone],
     );
     for (const a of due) {
       const when = new Intl.DateTimeFormat("pt-PT", { weekday: "long", hour: "2-digit", minute: "2-digit", timeZone: s.timezone }).format(new Date(a.start_time));
