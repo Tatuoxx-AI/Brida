@@ -107,9 +107,10 @@ export default async function Home() {
 
       {/* FAIXA --------------------------------------------------------------- */}
       <div className="overflow-hidden border-y border-border py-5" aria-hidden>
-        <div className="marquee flex w-max gap-12 whitespace-nowrap">
+        {/* duas cópias iguais: ao chegar a -50% a 2.ª ocupa o lugar da 1.ª e o ciclo não salta */}
+        <div className="marquee flex w-max whitespace-nowrap">
           {[...HIGHLIGHTS, ...HIGHLIGHTS].map((h, i) => (
-            <span key={i} className="flex items-center gap-12 font-serif text-2xl text-foreground/70 italic">
+            <span key={i} className="flex items-center gap-12 pr-12 font-serif text-2xl text-foreground/70 italic">
               {h} <span className="text-accent not-italic">✦</span>
             </span>
           ))}
