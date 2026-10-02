@@ -492,6 +492,17 @@ create table public.integration_secrets (
 
 insert into public.integration_secrets (id) values (1);
 
+-- Aparelhos do gerente que recebem notificações push (Web Push). Só o servidor lê.
+create table public.push_subscriptions (
+  id          uuid primary key default gen_random_uuid(),
+  endpoint    text not null unique,
+  p256dh      text not null,
+  auth        text not null,
+  user_agent  text,
+  created_at  timestamptz not null default now(),
+  last_ok_at  timestamptz
+);
+
 -- -----------------------------------------------------------------------------
 -- Feed do painel (consumido pela <NotificationBar /> via Realtime)
 -- -----------------------------------------------------------------------------
@@ -1309,6 +1320,7 @@ alter table public.admin_events         enable row level security;
 alter table public.loyalty_redemptions  enable row level security;
 alter table public.manager_notes        enable row level security;  -- só servidor
 alter table public.integration_secrets  enable row level security;  -- só servidor
+alter table public.push_subscriptions   enable row level security;  -- só servidor
 
 -- Catálogo público --------------------------------------------------------------
 create policy "settings: leitura pública" on public.salon_settings for select using (true);
@@ -1457,7 +1469,8 @@ from anon;
 grant select on public.reviews to anon;  -- só as publicadas passam no RLS (depoimentos)
 
 -- notas do gerente e credenciais: nem utilizadores autenticados (só o servidor)
-revoke all on table public.manager_notes, public.integration_secrets, public.stripe_events from authenticated;
+revoke all on table public.manager_notes, public.integration_secrets, public.stripe_events, public.push_subscriptions from authenticated;
+revoke all on table public.push_subscriptions from anon;
 
 -- =============================================================================
 -- Permissões de funções e views

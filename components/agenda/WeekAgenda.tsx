@@ -69,7 +69,7 @@ export function WeekAgenda({
 
   const [cell, setCell] = useState<{ date: string; hour: number } | null>(null);
   const [slot, setSlot] = useState<AgendaSlot | null>(null);
-  const [form, setForm] = useState({ name: "", phone: "", notes: "", website: "" });
+  const [form, setForm] = useState({ name: "", phone: "", email: "", birthDate: "", notes: "", website: "" });
   const [submitting, startSubmit] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [booking, setBooking] = useState<BookingSummary | null>(null);
@@ -349,6 +349,30 @@ export function WeekAgenda({
               onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
               className="h-12 rounded-xl border border-border bg-background/60 px-4 text-sm outline-none focus:border-accent/60"
             />
+            <input
+              required
+              type="email"
+              autoComplete="email"
+              placeholder="Email"
+              value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+              className="h-12 rounded-xl border border-border bg-background/60 px-4 text-sm outline-none focus:border-accent/60"
+            />
+            <label className="relative block">
+              <span className="pointer-events-none absolute top-1.5 left-4 text-[10px] tracking-[0.15em] text-muted-foreground uppercase">
+                Data de aniversário
+              </span>
+              <input
+                required
+                type="date"
+                autoComplete="bday"
+                max={today}
+                value={form.birthDate}
+                onChange={(e) => setForm((f) => ({ ...f, birthDate: e.target.value }))}
+                aria-label="Data de aniversário"
+                className="h-12 w-full rounded-xl border border-border bg-background/60 px-4 pt-4 text-sm outline-none [color-scheme:dark] focus:border-accent/60"
+              />
+            </label>
             <input
               placeholder="Observações (opcional)"
               value={form.notes}

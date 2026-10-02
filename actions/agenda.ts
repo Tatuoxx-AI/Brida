@@ -59,6 +59,14 @@ const BookInput = z.object({
   start: z.string().datetime({ offset: true }),
   name: z.string().trim().min(2, "Escreva o seu nome.").max(80),
   phone: z.string().trim().min(6, "Escreva o seu telemóvel.").max(30),
+  email: z.string().trim().email("Escreva um email válido.").max(120),
+  birthDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Indique a data de aniversário.")
+    .refine((d) => {
+      const age = (Date.now() - new Date(`${d}T12:00:00Z`).getTime()) / (365.25 * 864e5);
+      return age >= 3 && age <= 110;
+    }, "Data de aniversário inválida."),
   notes: z.string().trim().max(500).optional(),
   // armadilha para bots: campo escondido que pessoas não preenchem
   website: z.string().max(0).optional(),
@@ -84,6 +92,8 @@ export async function bookFromAgenda(raw: z.input<typeof BookInput>): Promise<Ag
     start: input.start,
     name: input.name,
     phone: input.phone,
+    email: input.email,
+    birthDate: input.birthDate,
     notes: input.notes,
     source: "web",
   });

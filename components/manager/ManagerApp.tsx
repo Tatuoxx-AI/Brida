@@ -13,6 +13,7 @@ import { AutomationTab } from "./AutomationTab";
 import { LoyaltyTab } from "./LoyaltyTab";
 import { AssistantTab } from "./AssistantTab";
 import { InstallTab } from "./InstallTab";
+import { PushBanner, usePush } from "./PushSetup";
 
 const TABS = [
   ["assistente", "Assistente"],
@@ -27,8 +28,9 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number][0];
 
-export function ManagerApp({ today, whatsappUrl }: { today: string; whatsappUrl: string }) {
+export function ManagerApp({ today, whatsappUrl, base, vapidKey }: { today: string; whatsappUrl: string; base: string; vapidKey: string }) {
   const [tab, setTab] = useState<Tab>("agenda");
+  const push = usePush(base, vapidKey);
 
   // separador lembrado no endereço (#agenda), sem expor nada
   useEffect(() => {
@@ -74,6 +76,7 @@ export function ManagerApp({ today, whatsappUrl }: { today: string; whatsappUrl:
             </button>
           ))}
         </nav>
+        <PushBanner push={push} />
       </header>
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-8">
@@ -85,7 +88,7 @@ export function ManagerApp({ today, whatsappUrl }: { today: string; whatsappUrl:
         {tab === "notas" && <NotesTab />}
         {tab === "automacao" && <AutomationTab />}
         {tab === "fidelidade" && <LoyaltyTab />}
-        {tab === "app" && <InstallTab />}
+        {tab === "app" && <InstallTab push={push} />}
       </main>
     </div>
   );

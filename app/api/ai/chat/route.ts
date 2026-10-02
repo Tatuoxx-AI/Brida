@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       const { data: me } = await supabase.from("profiles").select("id, name, phone").eq("user_id", auth.user.id).maybeSingle();
       if (me) {
         profileId = me.id;
-        extra = `O cliente tem sessão iniciada como ${me.name}${me.phone ? ` (${me.phone})` : ""}: não peças nome nem telefone; usa estes valores nas ferramentas.`;
+        extra = `O cliente tem sessão iniciada como ${me.name}${me.phone ? ` (${me.phone})` : ""}: não peças nome nem telefone (usa estes valores); pede só email e data de aniversário se ainda não os tiver dado.`;
       }
     }
   }

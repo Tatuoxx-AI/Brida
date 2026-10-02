@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { one, query } from "@/lib/db";
 import { normalizePhone } from "@/lib/phone";
 import { open } from "@/lib/secret-box";
+import { pushToManagers } from "@/lib/push";
 
 // =============================================================================
 // WhatsApp — confirmação de marcações.
@@ -191,6 +192,7 @@ export async function handleIncomingText(fromRaw: string, text: string): Promise
 
   if (wantsYes) {
     await query(`update public.appointments set status = 'confirmed' where id = $1 and status = 'pending'`, [ap.id]);
+    void pushToManagers({ title: "Marcação confirmada pelo cliente", body: desc, tag: `ap-${ap.id}` });
     return `Marcação confirmada ✅\n${desc}\nAté breve!`;
   }
   await query(
@@ -198,5 +200,6 @@ export async function handleIncomingText(fromRaw: string, text: string): Promise
       where id = $1 and status = 'pending'`,
     [ap.id],
   );
+  void pushToManagers({ title: "Marcação cancelada pelo cliente", body: desc, tag: `ap-${ap.id}` });
   return `Marcação cancelada.\n${desc}\nQuando quiser, marque de novo por aqui.`;
 }

@@ -7,7 +7,9 @@ import { cookies } from "next/headers";
 // do público. O endereço só é revelado pelo servidor (ponto final do título).
 
 const COOKIE = "brida_mgr";
-const MAX_AGE = 30 * 24 * 3600; // 30 dias: o gerente usa o painel como app no telemóvel
+// 1 ano, renovado sempre que o painel abre (mgrKeepAlive): no telemóvel da dona,
+// com o painel instalado como app, a sessão nunca expira enquanto for usada.
+const MAX_AGE = 365 * 24 * 3600;
 
 export function managerPath(): string | null {
   const p = process.env.MANAGER_PATH?.replace(/^\/+|\/+$/g, "");
@@ -35,7 +37,7 @@ export async function startManagerSession() {
   (await cookies()).set(COOKIE, `${payload}.${sign(payload)}`, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax", // "strict" perdia a sessão ao abrir o painel a partir de uma notificação
     path: "/",
     maxAge: MAX_AGE,
   });

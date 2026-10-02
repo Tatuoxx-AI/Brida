@@ -2,6 +2,7 @@ import "server-only";
 import { dbErrorMessage, one, query } from "@/lib/db";
 import { clientConfirmMessage, requestConfirmation } from "@/lib/whatsapp";
 import { notifyTelegram } from "@/lib/notify";
+import { pushToManagers } from "@/lib/push";
 import { whatsappLink } from "@/lib/format";
 import { normalizePhone } from "@/lib/phone";
 import { BOOKING_ERROR_MESSAGES, type AppointmentRow, type AppointmentSource, type BookingErrorCode } from "@/types/database";
@@ -39,9 +40,12 @@ export function bookingError(message: string): Extract<BookingResult, { ok: fals
 export async function resolveClient(
   name: string,
   rawPhone: string,
-  opts: { profileId?: string | null; knownPhone?: string | null },
+  opts: { profileId?: string | null; knownPhone?: string | null; email?: string | null; birthDate?: string | null },
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
-  if (opts.profileId) return { ok: true, id: opts.profileId };
+  if (opts.profileId) {
+    await completeProfile(opts.profileId, opts.email, opts.birthDate);
+    return { ok: true, id: opts.profileId };
+  }
   const phone = normalizePhone(opts.knownPhone ?? rawPhone);
   if (!phone) return { ok: false, error: "Telemóvel inválido. Ex.: 912 345 678 ou +351 912 345 678." };
 
@@ -55,7 +59,26 @@ export async function resolveClient(
      select id from ins union all select id from public.profiles where phone = $2 limit 1`,
     [name.trim(), phone],
   );
-  return row ? { ok: true, id: row.id } : { ok: false, error: "Não foi possível registar o contacto." };
+  if (!row) return { ok: false, error: "Não foi possível registar o contacto." };
+  await completeProfile(row.id, opts.email, opts.birthDate);
+  return { ok: true, id: row.id };
+}
+
+/**
+ * Guarda email e aniversário na ficha se ainda estiverem em branco (nunca
+ * sobrescreve o que o salão já tem). Um email já usado por outra ficha é ignorado.
+ */
+async function completeProfile(id: string, email?: string | null, birthDate?: string | null) {
+  if (!email && !birthDate) return;
+  await query(
+    `update public.profiles p
+        set email = case when p.email is null and $2::text is not null
+                          and not exists (select 1 from public.profiles o where lower(o.email) = lower($2) and o.id <> p.id)
+                         then $2 else p.email end,
+            birth_date = coalesce(p.birth_date, $3::date)
+      where p.id = $1`,
+    [id, email?.trim().toLowerCase() || null, birthDate || null],
+  );
 }
 
 export async function createBooking(input: {
@@ -64,6 +87,8 @@ export async function createBooking(input: {
   staffId?: string | null;
   name: string;
   phone: string;
+  email?: string | null;
+  birthDate?: string | null;
   notes?: string | null;
   source: AppointmentSource;
   profileId?: string | null;
@@ -109,6 +134,14 @@ export async function createBooking(input: {
           clientConfirmMessage({ code: ap.code, start_time: ap.start_time, services: { name: names.join(" + ") } }, input.name, tz),
         )
       : null;
+
+  // aviso no telemóvel da dona (painel instalado), mesmo com a app fechada
+  void pushToManagers({
+    title: status === "pending" ? "Nova marcação · por confirmar" : "Nova marcação",
+    body: `${input.name} · ${names.join(" + ")}
+${when}`,
+    tag: `ap-${ap.id}`,
+  });
 
   if (settings?.telegram_notify) {
     void notifyTelegram(

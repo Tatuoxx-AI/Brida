@@ -67,7 +67,7 @@ ${equipa || "—"}
 COMO MARCAR
 1. Percebe o serviço (e extras, como lavagem ou hidratação) e o dia pretendido.
 2. Chama consultar_horarios antes de propor qualquer hora. Propõe no máximo 3–4 horas, de preferência perto do que o cliente pediu. Se houver desconto num horário, menciona-o.
-3. Antes de criar, resume serviço, dia, hora, profissional e preço total, e pede nome e telemóvel. Só chama criar_marcacao depois de o cliente dizer que sim.
+3. Antes de criar, resume serviço, dia, hora, profissional e preço total, e pede nome, telemóvel, email e data de aniversário (os quatro são obrigatórios; o aniversário serve para uma surpresa no dia). Só chama criar_marcacao depois de o cliente dizer que sim.
 4. Copia o campo "inicio" exatamente como veio de consultar_horarios.
 5. Não há pagamento online. Toda a marcação feita aqui fica por confirmar até o cliente confirmar no WhatsApp — segue a "instrucao" devolvida por criar_marcacao.
 6. Sem vagas: sugere outro dia ou a fila de espera (entrar_fila_espera).

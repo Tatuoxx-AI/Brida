@@ -24,5 +24,5 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   // webhooks e ficheiros estáticos ficam de fora
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/webhooks|api/cron|sounds/|fotos/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp3)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/webhooks|api/cron|sounds/|fotos/|icone-app/|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp3)$).*)"],
 };

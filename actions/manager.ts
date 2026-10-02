@@ -11,6 +11,7 @@ import { bookingError, resolveClient } from "@/lib/booking";
 import { invalidateAgentCache } from "@/lib/ai/agent";
 import { notifyTelegram } from "@/lib/notify";
 import { open, seal } from "@/lib/secret-box";
+import { pushToManagers } from "@/lib/push";
 import type { AppointmentStatus, BusinessHoursRow, NoteKind, ServiceCategory } from "@/types/database";
 
 // Server Actions do painel do gerente. TODAS começam por requireManager().
@@ -38,6 +39,50 @@ export async function managerLogin(password: string): Promise<Result> {
 
 export async function managerLogout() {
   await endManagerSession();
+}
+
+/** Chamado ao abrir o painel: estende a sessão por mais 1 ano (fica sempre ligada). */
+export async function mgrKeepAlive(): Promise<boolean> {
+  await requireManager();
+  await startManagerSession();
+  return true;
+}
+
+// =============================================================================
+// Notificações push no telemóvel do gerente
+// =============================================================================
+const PushSub = z.object({
+  endpoint: z.string().url().max(1000),
+  keys: z.object({ p256dh: z.string().min(10).max(300), auth: z.string().min(5).max(100) }),
+});
+
+export async function mgrSavePush(raw: unknown, userAgent: string): Promise<Result> {
+  await requireManager();
+  const p = PushSub.safeParse(raw);
+  if (!p.success) return fail("Subscrição inválida.");
+  await exec(
+    `insert into public.push_subscriptions (endpoint, p256dh, auth, user_agent) values ($1, $2, $3, $4)
+     on conflict (endpoint) do update set p256dh = excluded.p256dh, auth = excluded.auth, user_agent = excluded.user_agent`,
+    [p.data.endpoint, p.data.keys.p256dh, p.data.keys.auth, String(userAgent ?? "").slice(0, 300)],
+  );
+  return { ok: true };
+}
+
+export async function mgrRemovePush(endpoint: string): Promise<Result> {
+  await requireManager();
+  await exec(`delete from public.push_subscriptions where endpoint = $1`, [String(endpoint ?? "")]);
+  return { ok: true };
+}
+
+export async function mgrTestPush(): Promise<Result> {
+  await requireManager();
+  const n = await pushToManagers({ title: "Brida · Painel", body: "✅ As notificações de marcações estão ativas neste aparelho.", tag: "teste" });
+  return n > 0 ? { ok: true } : fail("Nenhum aparelho recebeu. Ative as notificações primeiro.");
+}
+
+export async function mgrPushDevices(): Promise<number> {
+  await requireManager();
+  return (await one<{ n: number }>(`select count(*)::int as n from public.push_subscriptions`))?.n ?? 0;
 }
 
 // =============================================================================
