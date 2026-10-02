@@ -76,6 +76,7 @@ const pt = {
     message: "Mensagem",
     send: "Enviar",
     failed: "Falha na assistente.",
+    offline: "Neste momento não consigo responder 🙏 Pode escolher a hora na agenda aqui ao lado — é rápido — ou falar connosco pelo WhatsApp.",
   },
   me: {
     title: "O meu perfil",
@@ -185,6 +186,7 @@ const en: UiDict = {
     message: "Message",
     send: "Send",
     failed: "The assistant failed.",
+    offline: "I can't reply right now 🙏 You can pick a time in the calendar next to me — it's quick — or message us on WhatsApp.",
   },
   me: {
     title: "My profile",
@@ -291,6 +293,7 @@ const fr: UiDict = {
     message: "Message",
     send: "Envoyer",
     failed: "L'assistant a rencontré une erreur.",
+    offline: "Je ne peux pas répondre pour le moment 🙏 Choisissez un créneau dans l'agenda juste à côté — c'est rapide — ou écrivez-nous sur WhatsApp.",
   },
   me: {
     title: "Mon profil",
@@ -397,6 +400,7 @@ const es: UiDict = {
     message: "Mensaje",
     send: "Enviar",
     failed: "El asistente ha fallado.",
+    offline: "Ahora mismo no puedo responder 🙏 Puedes elegir la hora en la agenda aquí al lado — es rápido — o escribirnos por WhatsApp.",
   },
   me: {
     title: "Mi perfil",
@@ -503,6 +507,7 @@ const de: UiDict = {
     message: "Nachricht",
     send: "Senden",
     failed: "Der Assistent ist fehlgeschlagen.",
+    offline: "Ich kann gerade nicht antworten 🙏 Wählen Sie eine Uhrzeit im Kalender nebenan — das geht schnell — oder schreiben Sie uns per WhatsApp.",
   },
   me: {
     title: "Mein Profil",

@@ -5,6 +5,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { currentClient } from "@/lib/client-session";
 import { getLocale } from "@/lib/i18n/server";
 import { LOCALE_INFO } from "@/lib/i18n/locales";
+import { UI } from "@/lib/i18n/ui";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -19,9 +20,10 @@ const Body = z.object({
 
 /** Chat de marcações do site (<AiBookingWidget />). */
 export async function POST(request: NextRequest) {
-  if (!process.env.OPENAI_API_KEY) {
-    return NextResponse.json({ error: "Assistente indisponível de momento." }, { status: 503 });
-  }
+  // Sem IA (sem chave ou sem créditos) o visitante recebe uma resposta simpática que o
+  // encaminha para a agenda e o WhatsApp, em vez de um erro.
+  const offline = async () => NextResponse.json({ reply: UI[await getLocale()].chat.offline, offline: true });
+  if (!process.env.OPENAI_API_KEY) return offline();
 
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
   if (!rateLimit(`chat:${ip}`, 20, 10 * 60_000)) {
@@ -48,7 +50,7 @@ export async function POST(request: NextRequest) {
     const result = await runAgent(parsed.data.messages, { channel: "web", profileId, intl: LOCALE_INFO[locale].intl }, extra);
     return NextResponse.json(result);
   } catch (e) {
-    console.error("[ai/chat]", e);
-    return NextResponse.json({ error: "O assistente falhou. Tente novamente ou ligue-nos." }, { status: 502 });
+    console.error("[ai/chat]", (e as Error).message);
+    return offline();
   }
 }
