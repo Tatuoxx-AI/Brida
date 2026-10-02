@@ -27,7 +27,7 @@ export type BookingSummary = {
 };
 
 export type BookingResult =
-  | { ok: true; booking: BookingSummary }
+  | { ok: true; booking: BookingSummary; clientId: string; verified: boolean }
   | { ok: false; error: string; code: BookingErrorCode | "INVALID_PHONE" | "UNKNOWN" };
 
 export function bookingError(message: string): Extract<BookingResult, { ok: false }> {
@@ -41,27 +41,35 @@ export async function resolveClient(
   name: string,
   rawPhone: string,
   opts: { profileId?: string | null; knownPhone?: string | null; email?: string | null; birthDate?: string | null },
-): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
+): Promise<{ ok: true; id: string; verified: boolean } | { ok: false; error: string }> {
   if (opts.profileId) {
     await completeProfile(opts.profileId, opts.email, opts.birthDate);
-    return { ok: true, id: opts.profileId };
+    return { ok: true, id: opts.profileId, verified: true };
   }
   const phone = normalizePhone(opts.knownPhone ?? rawPhone);
   if (!phone) return { ok: false, error: "Telemóvel inválido. Ex.: 912 345 678 ou +351 912 345 678." };
 
   // insere se não existir; se já existir (índice único do telefone) devolve a ficha
-  const row = await one<{ id: string }>(
+  const row = await one<{ id: string; created: boolean; email: string | null; birth_date: string | null }>(
     `with ins as (
        insert into public.profiles (name, phone, role) values ($1, $2, 'client')
        on conflict (phone) where phone is not null do nothing
        returning id
      )
-     select id from ins union all select id from public.profiles where phone = $2 limit 1`,
+     select id, true as created, null::text as email, null::text as birth_date from ins
+     union all
+     select id, false, email, birth_date::text from public.profiles where phone = $2
+     limit 1`,
     [name.trim(), phone],
   );
   if (!row) return { ok: false, error: "Não foi possível registar o contacto." };
+  // Ficha nova → é desta pessoa. Ficha que já existia → só se o email E o aniversário
+  // coincidirem (para ninguém ver os dados de outra pessoa só por saber o telemóvel).
+  const sameEmail = !!row.email && !!opts.email && row.email.toLowerCase() === opts.email.trim().toLowerCase();
+  const sameBirth = !!row.birth_date && row.birth_date === opts.birthDate;
+  const verified = row.created || (sameEmail && sameBirth);
   await completeProfile(row.id, opts.email, opts.birthDate);
-  return { ok: true, id: row.id };
+  return { ok: true, id: row.id, verified };
 }
 
 /**
@@ -93,6 +101,8 @@ export async function createBooking(input: {
   source: AppointmentSource;
   profileId?: string | null;
   knownPhone?: string | null;
+  /** formato da data devolvida ao cliente (ex.: "en-GB") */
+  intl?: string;
 }): Promise<BookingResult> {
   const client = await resolveClient(input.name, input.phone, input);
   if (!client.ok) return { ok: false, error: client.error, code: "INVALID_PHONE" };
@@ -124,7 +134,8 @@ export async function createBooking(input: {
   ]);
   const tz = settings?.timezone ?? "Europe/Lisbon";
   const names = input.serviceIds.map((id) => services.find((s) => s.id === id)?.name ?? "Serviço");
-  const when = new Intl.DateTimeFormat("pt-PT", { dateStyle: "full", timeStyle: "short", timeZone: tz }).format(new Date(ap.start_time));
+  const when = new Intl.DateTimeFormat(input.intl ?? "pt-PT", { dateStyle: "full", timeStyle: "short", timeZone: tz }).format(new Date(ap.start_time));
+  const whenPt = new Intl.DateTimeFormat("pt-PT", { dateStyle: "full", timeStyle: "short", timeZone: tz }).format(new Date(ap.start_time));
 
   const confirmationSent = status === "pending" && settings?.auto_confirm_whatsapp ? await requestConfirmation(ap.id) : false;
   const confirmUrl =
@@ -139,18 +150,20 @@ export async function createBooking(input: {
   void pushToManagers({
     title: status === "pending" ? "Nova marcação · por confirmar" : "Nova marcação",
     body: `${input.name} · ${names.join(" + ")}
-${when}`,
+${whenPt}`,
     tag: `ap-${ap.id}`,
   });
 
   if (settings?.telegram_notify) {
     void notifyTelegram(
-      `🗓 Nova marcação${status === "pending" ? " (por confirmar)" : ""}\n${input.name} · ${input.phone}\n${names.join(" + ")}\n${when}\n#${ap.code}`,
+      `🗓 Nova marcação${status === "pending" ? " (por confirmar)" : ""}\n${input.name} · ${input.phone}\n${names.join(" + ")}\n${whenPt}\n#${ap.code}`,
     );
   }
 
   return {
     ok: true,
+    clientId: client.id,
+    verified: client.verified,
     booking: {
       id: ap.id,
       code: ap.code,

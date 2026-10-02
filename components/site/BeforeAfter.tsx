@@ -3,9 +3,11 @@
 import { useRef, useState } from "react";
 import { MoveHorizontal } from "lucide-react";
 import { Photo } from "./Photo";
+import { useT } from "@/lib/i18n/client";
 
 /** Comparador antes/depois: arrastar (rato ou dedo) ou usar as setas do teclado. */
 export function BeforeAfter({ before, after, title }: { before: string; after: string; title: string }) {
+  const t = useT();
   const [pos, setPos] = useState(50);
   const box = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
@@ -30,16 +32,16 @@ export function BeforeAfter({ before, after, title }: { before: string; after: s
         onPointerUp={() => (dragging.current = false)}
         onPointerCancel={() => (dragging.current = false)}
       >
-        <Photo src={after} alt={`${title} — depois`} label="Depois" compact="right" className="absolute inset-0 size-full" />
+        <Photo src={after} alt={`${title} — ${t.after}`} label={t.after} compact="right" className="absolute inset-0 size-full" />
         <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}>
-          <Photo src={before} alt={`${title} — antes`} label="Antes" compact="left" className="absolute inset-0 size-full" />
+          <Photo src={before} alt={`${title} — ${t.before}`} label={t.before} compact="left" className="absolute inset-0 size-full" />
         </div>
 
         <span className="absolute top-3 left-3 rounded-full bg-black/55 px-2.5 py-1 font-label text-[10px] tracking-[0.2em] text-white uppercase backdrop-blur">
-          Antes
+          {t.before}
         </span>
         <span className="absolute top-3 right-3 rounded-full bg-black/55 px-2.5 py-1 font-label text-[10px] tracking-[0.2em] text-white uppercase backdrop-blur">
-          Depois
+          {t.after}
         </span>
 
         <div className="pointer-events-none absolute inset-y-0 w-px bg-accent" style={{ left: `${pos}%` }}>
@@ -54,7 +56,7 @@ export function BeforeAfter({ before, after, title }: { before: string; after: s
           max={100}
           value={pos}
           onChange={(e) => setPos(Number(e.target.value))}
-          aria-label={`Comparar antes e depois: ${title}`}
+          aria-label={`${t.compare}: ${title}`}
           className="sr-only"
         />
       </div>

@@ -5,6 +5,8 @@ import { CalendarCheck, Loader2, MessageCircle, RotateCcw, SendHorizontal, X } f
 import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
 import { resetChat, sendChat, useChat, type ChatBooking } from "@/lib/chat-store";
+import { useT } from "@/lib/i18n/client";
+import type { UiDict } from "@/lib/i18n/ui";
 
 export type ChatPanelHandle = { focus: () => void; send: (text: string) => void };
 
@@ -23,6 +25,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
   ref,
 ) {
   const chat = useChat(greeting);
+  const t = useT();
   const [input, setInput] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -45,11 +48,11 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
   }, [chat.messages.length, chat.booking, chat.loading]);
 
   const fresh = chat.messages.length <= 1;
-  const suggestions = ["Quero marcar", "Ver serviços", "Horário de funcionamento"];
+  const suggestions = t.chat.suggestions;
 
   return (
     <section
-      aria-label={`${assistantName}, assistente de marcações`}
+      aria-label={`${assistantName} · ${t.chat.assistant}`}
       className={cn(
         "flex min-h-0 flex-col overflow-hidden rounded-[1.75rem] border border-border bg-card/70 shadow-2xl backdrop-blur-xl",
         className,
@@ -62,17 +65,17 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-serif text-2xl leading-none">
-            {assistantName} <span className="text-muted-foreground">· Assistente</span>
+            {assistantName} <span className="text-muted-foreground">· {t.chat.assistant}</span>
           </p>
-          <p className="mt-1 font-label text-[10px] tracking-[0.25em] text-emerald-400/90 uppercase">Online · responde na hora</p>
+          <p className="mt-1 font-label text-[10px] tracking-[0.25em] text-emerald-400/90 uppercase">{t.chat.online}</p>
         </div>
         {!fresh && (
-          <button type="button" onClick={resetChat} title="Recomeçar conversa" className="rounded-full p-2 text-muted-foreground transition hover:text-foreground">
+          <button type="button" onClick={resetChat} title={t.chat.restart} className="rounded-full p-2 text-muted-foreground transition hover:text-foreground">
             <RotateCcw className="size-4" />
           </button>
         )}
         {onClose && (
-          <button type="button" onClick={onClose} aria-label="Fechar" className="rounded-full p-2 text-muted-foreground transition hover:text-foreground">
+          <button type="button" onClick={onClose} aria-label={t.chat.close} className="rounded-full p-2 text-muted-foreground transition hover:text-foreground">
             <X className="size-5" />
           </button>
         )}
@@ -93,10 +96,10 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
             </p>
           </div>
         ))}
-        {chat.booking && <BookingCard booking={chat.booking} />}
+        {chat.booking && <BookingCard booking={chat.booking} t={t} />}
         {chat.loading && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Loader2 className="size-3.5 animate-spin" /> {assistantName} está a escrever…
+            <Loader2 className="size-3.5 animate-spin" /> {t.chat.typing(assistantName)}
           </div>
         )}
       </div>
@@ -121,7 +124,7 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
             rel="noopener noreferrer"
             className="rounded-full border border-border px-3.5 py-1.5 text-xs text-muted-foreground transition hover:border-accent/40 hover:text-foreground"
           >
-            Falar com o salão
+            {t.chat.talkToSalon}
           </a>
         </div>
       )}
@@ -145,14 +148,14 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
           }}
           rows={1}
           maxLength={1000}
-          placeholder="Escreva aqui…"
-          aria-label="Mensagem"
+          placeholder={t.chat.placeholder}
+          aria-label={t.chat.message}
           className="max-h-28 min-h-12 flex-1 resize-none rounded-2xl border border-border bg-background/60 px-4 py-3 text-sm outline-none transition placeholder:text-muted-foreground focus:border-accent/60"
         />
         <button
           type="submit"
           disabled={chat.loading || !input.trim()}
-          aria-label="Enviar"
+          aria-label={t.chat.send}
           className="grid size-12 shrink-0 place-items-center rounded-2xl bg-accent text-accent-foreground transition hover:brightness-110 disabled:opacity-40"
         >
           <SendHorizontal className="size-5" />
@@ -162,25 +165,30 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
   );
 });
 
-function BookingCard({ booking }: { booking: ChatBooking }) {
+function BookingCard({ booking, t }: { booking: ChatBooking; t: UiDict }) {
   const confirmed = booking.status === "confirmed";
   return (
     <div className="rounded-2xl border border-accent/40 bg-accent/10 p-4 text-sm">
       <div className="mb-2 flex items-center gap-2 font-medium">
         <CalendarCheck className="size-4 text-accent" />
-        {confirmed ? "Marcação confirmada" : "Marcação por confirmar"}
+        {confirmed ? t.booking.confirmed : t.booking.pending}
         <span className="ml-auto font-mono text-xs text-muted-foreground">#{booking.code}</span>
       </div>
       <p>{booking.services.join(" + ")}</p>
       <p className="text-muted-foreground first-letter:uppercase">{booking.when}</p>
-      {booking.staffName && <p className="text-muted-foreground">com {booking.staffName}</p>}
+      {booking.staffName && (
+        <p className="text-muted-foreground">
+          {t.booking.with} {booking.staffName}
+        </p>
+      )}
       <p className="mt-1 text-xs text-muted-foreground">
-        {booking.total > 0 ? `${formatMoney(booking.total)} · ` : ""}pagamento no salão
+        {booking.total > 0 ? `${formatMoney(booking.total)} · ` : ""}
+        {t.booking.payAtSalon}
       </p>
       {!confirmed &&
         (booking.confirmationSent ? (
           <p className="mt-3 rounded-lg bg-background/60 p-2 text-xs">
-            Enviámos-lhe uma mensagem no WhatsApp. Responda <b>SIM</b> para garantir a vaga.
+            {t.booking.sentWhatsapp}
           </p>
         ) : (
           booking.confirmUrl && (
@@ -190,7 +198,7 @@ function BookingCard({ booking }: { booking: ChatBooking }) {
               rel="noopener noreferrer"
               className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2.5 font-medium text-white transition hover:brightness-95"
             >
-              <MessageCircle className="size-4" /> Confirmar no WhatsApp
+              <MessageCircle className="size-4" /> {t.booking.confirmWhatsapp}
             </a>
           )
         ))}

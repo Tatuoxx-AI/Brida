@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Jost, Mulish } from "next/font/google";
 import "./globals.css";
+import { getLocale } from "@/lib/i18n/server";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -29,9 +30,10 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = { themeColor: "#141210", viewportFit: "cover" };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getLocale();
   return (
-    <html lang="pt" className={`${cormorant.variable} ${jost.variable} ${mulish.variable}`}>
+    <html lang={locale} className={`${cormorant.variable} ${jost.variable} ${mulish.variable}`}>
       <body>{children}</body>
     </html>
   );

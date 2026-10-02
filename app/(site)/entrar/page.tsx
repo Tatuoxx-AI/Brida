@@ -1,10 +1,6 @@
-export const metadata = { title: "Entrar" };
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return (
-    <main className="mx-auto max-w-5xl px-4 py-16">
-      <h1 className="text-4xl">Entrar</h1>
-      <p className="mt-2 text-muted-foreground">Login por email (magic link) ou telefone.</p>
-    </main>
-  );
+// O perfil do cliente fica guardado no aparelho — não há login.
+export default function Entrar() {
+  redirect("/perfil");
 }

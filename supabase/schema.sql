@@ -115,6 +115,8 @@ create table public.salon_settings (
   telegram_notify           boolean not null default false,
   hero_image_url            text,          -- foto do topo (painel → Editar site → Fotos)
   about_image_url           text,          -- foto da secção "Sobre"
+  content                   jsonb not null default '{}',  -- textos do site alterados no painel (pt)
+  content_i18n              jsonb not null default '{}',  -- traduções automáticas {en:{…},fr:{…},…}
   updated_at                timestamptz not null default now()
 );
 
@@ -197,6 +199,7 @@ create table public.services (
   image_url        text,
   sort_order       int not null default 0,
   active           boolean not null default true,
+  i18n             jsonb not null default '{}',   -- {en:{name,description},…}
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
 );
@@ -247,7 +250,8 @@ create table public.gallery_items (
   id         uuid primary key default gen_random_uuid(),
   title      text,
   before_url text,
-  after_url  text not null,
+  after_url  text,                      -- sem foto ainda = espaço reservado no site
+  i18n       jsonb not null default '{}',  -- título noutras línguas {en:"…",…}
   service_id uuid references public.services (id) on delete set null,
   staff_id   uuid references public.profiles (id) on delete set null,
   sort_order int not null default 0,

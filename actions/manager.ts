@@ -12,6 +12,10 @@ import { invalidateAgentCache } from "@/lib/ai/agent";
 import { notifyTelegram } from "@/lib/notify";
 import { open, seal } from "@/lib/secret-box";
 import { pushToManagers } from "@/lib/push";
+import { translateObject } from "@/lib/ai/translate";
+import { resolveContent } from "@/lib/site-data";
+import { DEFAULT_CONTENT, NEUTRAL_KEYS, type ContentKey, type Review, type SiteContent, type Stat } from "@/lib/i18n/content";
+import type { Locale } from "@/lib/i18n/locales";
 import type { AppointmentStatus, BusinessHoursRow, NoteKind, ServiceCategory } from "@/types/database";
 
 // Server Actions do painel do gerente. TODAS começam por requireManager().
@@ -512,6 +516,7 @@ export async function mgrSaveService(raw: z.input<typeof Service>): Promise<Resu
               duration_minutes = $5, price = $6, is_addon = $7, active = $8 where id = $1`,
       [s.id, s.name, s.description ?? "", s.category, s.duration_minutes, s.price, s.is_addon, s.active],
     );
+    await translateServices([s.id]);
   } else {
     // serviço novo: todas as profissionais ativas fazem-no (ajustável depois)
     await exec(
@@ -525,6 +530,8 @@ export async function mgrSaveService(raw: z.input<typeof Service>): Promise<Resu
        select p.id, sv.id from sv, public.profiles p where p.role in ('staff', 'admin') and p.active`,
       [s.name, s.description ?? "", s.category, s.duration_minutes, s.price, s.is_addon, s.active],
     );
+    const created = await one<{ id: string }>(`select id from public.services where name = $1 order by created_at desc limit 1`, [s.name]);
+    if (created) await translateServices([created.id]);
   }
   siteChanged();
   return { ok: true };
@@ -695,6 +702,14 @@ export async function mgrSaveLoyalty(stampsRequired: number, reward: string): Pr
   const r = String(reward ?? "").trim().slice(0, 120);
   if (!r) return fail("Escreva a recompensa.");
   await exec(`update public.salon_settings set loyalty_stamps_required = $1, loyalty_reward = $2 where id = 1`, [n.data, r]);
+  // tradução da recompensa para a área de cliente nas outras línguas
+  const row = await contentRow();
+  const i18n = { ...row.content_i18n } as Record<string, Record<string, unknown>>;
+  for (const l of TARGETS) {
+    const out = await translateObject({ loyaltyReward: r }, l);
+    if (out) i18n[l] = { ...(i18n[l] ?? {}), loyaltyReward: out.loyaltyReward };
+  }
+  await exec(`update public.salon_settings set content_i18n = $1 where id = 1`, [i18n]);
   siteChanged();
   return { ok: true };
 }
@@ -762,6 +777,7 @@ export async function mgrSaveAssistant(raw: MgrAssistant): Promise<Result> {
     `update public.salon_settings set assistant_name = $1, assistant_greeting = $2, assistant_instructions = nullif($3, '') where id = 1`,
     [name, greeting, instructions],
   );
+  await translateGreeting();
   siteChanged();
   return { ok: true };
 }
@@ -769,7 +785,7 @@ export async function mgrSaveAssistant(raw: MgrAssistant): Promise<Result> {
 // =============================================================================
 // Fotos do site (Editar site → Fotos)
 // =============================================================================
-export type MgrGalleryItem = { id: string; title: string; before: string | null; after: string; published: boolean };
+export type MgrGalleryItem = { id: string; title: string; before: string | null; after: string | null; published: boolean };
 export type MgrPhotos = { hero: string | null; about: string | null; gallery: MgrGalleryItem[] };
 
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -874,4 +890,224 @@ export async function mgrDeleteGalleryItem(id: string): Promise<Result> {
   await deleteMedia(it?.before_url, it?.after_url);
   siteChanged();
   return { ok: true };
+}
+
+// =============================================================================
+// Textos do site (Editar site → Textos do site) + traduções automáticas
+// =============================================================================
+const TARGETS: Locale[] = ["en", "fr", "es", "de"];
+
+type ContentRow = { content: Partial<SiteContent>; content_i18n: Partial<Record<Locale, Partial<SiteContent>>> };
+
+export type MgrContent = {
+  values: SiteContent;
+  /** línguas em que faltam traduções de textos alterados */
+  missing: Locale[];
+  aiReady: boolean;
+};
+
+async function contentRow(): Promise<ContentRow> {
+  return (await one<ContentRow>(`select content, content_i18n from public.salon_settings where id = 1`)) ?? { content: {}, content_i18n: {} };
+}
+
+function missingLocales(row: ContentRow): Locale[] {
+  const keys = (Object.keys(row.content) as ContentKey[]).filter((k) => !NEUTRAL_KEYS.includes(k));
+  return TARGETS.filter((l) => keys.some((k) => row.content_i18n[l]?.[k] === undefined));
+}
+
+export async function mgrContent(): Promise<MgrContent> {
+  await requireManager();
+  const row = await contentRow();
+  return { values: resolveContent("pt", row.content, {}), missing: missingLocales(row), aiReady: !!process.env.OPENAI_API_KEY };
+}
+
+/** Traduz as chaves indicadas (ou todas as que faltam) para as 4 línguas. */
+async function translateContent(row: ContentRow, only?: ContentKey[]): Promise<ContentRow["content_i18n"]> {
+  const i18n = { ...row.content_i18n };
+  for (const l of TARGETS) {
+    const keys = (Object.keys(row.content) as ContentKey[]).filter(
+      (k) => !NEUTRAL_KEYS.includes(k) && (only ? only.includes(k) : i18n[l]?.[k] === undefined),
+    );
+    if (!keys.length) continue;
+    const src = Object.fromEntries(keys.map((k) => [k, row.content[k]]));
+    const out = await translateObject(src, l);
+    if (out) i18n[l] = { ...(i18n[l] ?? {}), ...out };
+  }
+  return i18n;
+}
+
+/** Guarda os textos (só o que difere do original) e traduz o que mudou. */
+export async function mgrSaveContent(values: Partial<SiteContent>): Promise<Result<{ translated: boolean }>> {
+  await requireManager();
+  const row = await contentRow();
+  const next: Partial<SiteContent> = { ...row.content };
+  const changed: ContentKey[] = [];
+  for (const [k, raw] of Object.entries(values) as [ContentKey, unknown][]) {
+    if (!(k in DEFAULT_CONTENT.pt)) continue;
+    const v = sanitizeContentValue(k, raw);
+    if (v === undefined) continue;
+    const isDefault = JSON.stringify(v) === JSON.stringify(DEFAULT_CONTENT.pt[k]);
+    const before = JSON.stringify(row.content[k]);
+    if (isDefault) delete next[k];
+    else (next as Record<string, unknown>)[k] = v;
+    if (JSON.stringify(next[k]) !== before) changed.push(k);
+  }
+  // traduções antigas das chaves alteradas deixam de valer
+  const i18n: ContentRow["content_i18n"] = {};
+  for (const l of TARGETS) {
+    const cur = { ...(row.content_i18n[l] ?? {}) };
+    for (const k of changed) delete cur[k];
+    i18n[l] = cur;
+  }
+  await exec(`update public.salon_settings set content = $1, content_i18n = $2 where id = 1`, [next, i18n]);
+  const toTranslate = changed.filter((k) => k in next && !NEUTRAL_KEYS.includes(k));
+  let translated = true;
+  if (toTranslate.length) {
+    const done = await translateContent({ content: next, content_i18n: i18n }, toTranslate);
+    await exec(`update public.salon_settings set content_i18n = $1 where id = 1`, [done]);
+    translated = missingLocales({ content: next, content_i18n: done }).length === 0;
+  }
+  siteChanged();
+  return { ok: true, data: { translated } };
+}
+
+/** "Traduzir agora": completa traduções em falta (textos, serviços, galeria, saudação). */
+export async function mgrTranslateAll(): Promise<Result<{ missing: Locale[] }>> {
+  await requireManager();
+  if (!process.env.OPENAI_API_KEY) return fail("Falta a chave da OpenAI.");
+  const row = await contentRow();
+  const i18n = await translateContent(row);
+  await exec(`update public.salon_settings set content_i18n = $1 where id = 1`, [i18n]);
+  await translateServices();
+  await translateGalleryTitles();
+  await translateGreeting();
+  siteChanged();
+  const missing = missingLocales({ content: row.content, content_i18n: i18n });
+  return missing.length ? fail(`Sem resposta da IA para: ${missing.join(", ")} (créditos da OpenAI?)`) : { ok: true, data: { missing } };
+}
+
+function sanitizeContentValue(k: ContentKey, raw: unknown): unknown {
+  const str = (v: unknown, max = 600) => (typeof v === "string" ? v.trim().slice(0, max) : undefined);
+  const def = DEFAULT_CONTENT.pt[k];
+  if (Array.isArray(def)) {
+    if (!Array.isArray(raw)) return undefined;
+    if (k === "marqueeItems") return raw.map((x) => str(x, 80)).filter(Boolean).slice(0, 12);
+    if (k === "aboutStats")
+      return raw
+        .map((x) => ({ value: str((x as Stat)?.value, 20) ?? "", label: str((x as Stat)?.label, 60) ?? "" }))
+        .filter((x) => x.value || x.label)
+        .slice(0, 3);
+    if (k === "reviews")
+      return raw
+        .map((x) => ({
+          name: str((x as Review)?.name, 40) ?? "",
+          rating: Math.max(1, Math.min(5, Math.round(Number((x as Review)?.rating) || 5))),
+          text: str((x as Review)?.text, 400) ?? "",
+        }))
+        .filter((x) => x.name && x.text)
+        .slice(0, 6);
+    return undefined;
+  }
+  return str(raw, k === "aboutText" || k === "heroSubtitle" ? 1500 : 300);
+}
+
+async function translateServices(ids?: string[]) {
+  const rows = await query<{ id: string; name: string; description: string | null; i18n: Partial<Record<Locale, { name?: string; description?: string }>> }>(
+    `select id, name, description, i18n from public.services ${ids ? "where id = any($1::uuid[])" : ""}`,
+    ids ? [ids] : [],
+  );
+  for (const r of rows) {
+    const i18n = { ...(r.i18n ?? {}) };
+    let touched = false;
+    for (const l of TARGETS) {
+      if (!ids && i18n[l]?.name) continue;
+      const out = await translateObject({ name: r.name, description: r.description ?? "" }, l);
+      if (out) {
+        i18n[l] = { name: out.name, description: out.description || undefined };
+        touched = true;
+      }
+    }
+    if (touched) await exec(`update public.services set i18n = $2 where id = $1`, [r.id, i18n]);
+  }
+}
+
+async function translateGalleryTitles(id?: string) {
+  const rows = await query<{ id: string; title: string | null; i18n: Partial<Record<Locale, string>> }>(
+    `select id, title, i18n from public.gallery_items ${id ? "where id = $1" : ""}`,
+    id ? [id] : [],
+  );
+  for (const r of rows) {
+    if (!r.title) continue;
+    const i18n = { ...(r.i18n ?? {}) };
+    let touched = false;
+    for (const l of TARGETS) {
+      if (!id && i18n[l]) continue;
+      const out = await translateObject({ title: r.title }, l);
+      if (out?.title) {
+        i18n[l] = out.title;
+        touched = true;
+      }
+    }
+    if (touched) await exec(`update public.gallery_items set i18n = $2 where id = $1`, [r.id, i18n]);
+  }
+}
+
+async function translateGreeting() {
+  const s = await one<{ assistant_greeting: string }>(`select assistant_greeting from public.salon_settings where id = 1`);
+  if (!s || s.assistant_greeting === DEFAULT_CONTENT.pt.assistantGreeting) return;
+  const row = await contentRow();
+  const i18n = { ...row.content_i18n };
+  for (const l of TARGETS) {
+    const out = await translateObject({ assistantGreeting: s.assistant_greeting }, l);
+    if (out) i18n[l] = { ...(i18n[l] ?? {}), assistantGreeting: out.assistantGreeting };
+  }
+  await exec(`update public.salon_settings set content_i18n = $1 where id = 1`, [i18n]);
+}
+
+// -----------------------------------------------------------------------------
+// Antes & depois: cada par editável (título, foto do antes, foto do depois)
+// -----------------------------------------------------------------------------
+export async function mgrAddGalleryItem(title: string): Promise<Result> {
+  await requireManager();
+  const t = String(title ?? "").trim().slice(0, 60);
+  if (!t) return fail("Dê um título (ex.: Madeixas).");
+  const row = await one<{ id: string }>(
+    `insert into public.gallery_items (title, sort_order)
+     values ($1, (select coalesce(max(sort_order), 0) + 10 from public.gallery_items)) returning id`,
+    [t],
+  );
+  if (row) await translateGalleryTitles(row.id);
+  siteChanged();
+  return { ok: true };
+}
+
+/** Atualiza um par: form com id e, opcionalmente, title / before / after (+ width/height). */
+export async function mgrUpdateGalleryItem(form: FormData): Promise<Result> {
+  await requireManager();
+  const id = z.string().uuid().safeParse(form.get("id"));
+  if (!id.success) return fail("Par inválido.");
+  const cur = await one<{ title: string | null; before_url: string | null; after_url: string | null }>(
+    `select title, before_url, after_url from public.gallery_items where id = $1`,
+    [id.data],
+  );
+  if (!cur) return fail("Par não encontrado.");
+  try {
+    const title = form.get("title");
+    if (typeof title === "string" && title.trim() && title.trim() !== cur.title) {
+      await exec(`update public.gallery_items set title = $2, i18n = '{}' where id = $1`, [id.data, title.trim().slice(0, 60)]);
+      await translateGalleryTitles(id.data);
+    }
+    for (const side of ["before", "after"] as const) {
+      const file = form.get(side);
+      if (file instanceof File && file.size > 0) {
+        const url = await saveMedia(file, form.get(`${side}Width`), form.get(`${side}Height`));
+        await exec(`update public.gallery_items set ${side}_url = $2 where id = $1`, [id.data, url]);
+        await deleteMedia(side === "before" ? cur.before_url : cur.after_url);
+      }
+    }
+    siteChanged();
+    return { ok: true };
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : "Não foi possível guardar.");
+  }
 }

@@ -1,6 +1,9 @@
 import { Clock, MapPin, MessageCircle, Phone, Star } from "lucide-react";
 import { getSiteData } from "@/lib/site-data";
+import { getLocale } from "@/lib/i18n/server";
+import { UI } from "@/lib/i18n/ui";
 import { formatPhone, whatsappLink } from "@/lib/format";
+import { currentClient } from "@/lib/client-session";
 import { Photo } from "@/components/site/Photo";
 import { BeforeAfter } from "@/components/site/BeforeAfter";
 import { ServiceTabs } from "@/components/site/ServiceTabs";
@@ -10,23 +13,11 @@ import { WeekAgenda } from "@/components/agenda/WeekAgenda";
 import { InlineChat } from "@/components/ai/InlineChat";
 import { SecretDot } from "@/components/site/SecretDot";
 
-export const metadata = { title: { absolute: "Brida Coiffeur By Claudia Rocha · Cabeleireiro em Portimão" } };
-export const revalidate = 300;
-
-const HIGHLIGHTS = [
-  "25 anos de experiência",
-  "Tricologia pela USP",
-  "Formação em Londres",
-  "Madeixas · Coloração · Alisamento",
-  "Unhas e sobrancelhas",
-  "Portimão",
-];
+export const metadata = { title: { absolute: "Brida Coiffeur By Claudia Rocha · Portimão" } };
 
 function Eyebrow({ children, center }: { children: React.ReactNode; center?: boolean }) {
   return (
-    <p
-      className={`flex items-center gap-3 font-label text-[11px] tracking-[0.35em] text-accent uppercase ${center ? "justify-center" : ""}`}
-    >
+    <p className={`flex items-center gap-3 font-label text-[11px] tracking-[0.35em] text-accent uppercase ${center ? "justify-center" : ""}`}>
       <span className="h-px w-8 bg-accent/60" />
       {children}
       {center && <span className="h-px w-8 bg-accent/60" />}
@@ -34,9 +25,9 @@ function Eyebrow({ children, center }: { children: React.ReactNode; center?: boo
   );
 }
 
-function Stars({ value, className }: { value: number; className?: string }) {
+function Stars({ value, label, className }: { value: number; label: string; className?: string }) {
   return (
-    <span className={className} aria-label={`${value} de 5 estrelas`}>
+    <span className={className} aria-label={`${value} ${label}`}>
       {Array.from({ length: 5 }, (_, i) => (
         <Star key={i} className={`inline size-3.5 ${i < Math.round(value) ? "fill-accent text-accent" : "text-muted-foreground"}`} />
       ))}
@@ -45,32 +36,32 @@ function Stars({ value, className }: { value: number; className?: string }) {
 }
 
 export default async function Home() {
-  const site = await getSiteData();
+  const locale = await getLocale();
+  const [site, me] = await Promise.all([getSiteData(locale), currentClient()]);
+  const c = site.content;
+  const t = UI[locale];
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Lisbon" }).format(new Date());
-  const wa = whatsappLink(site.whatsapp, "Olá! Gostaria de marcar um serviço no Brida Coiffeur.");
+  const wa = whatsappLink(site.whatsapp, c.whatsappMessage);
+  const marquee = c.marqueeItems.filter(Boolean);
 
   return (
     <main>
       {/* HERO ------------------------------------------------------------- */}
       <section className="relative overflow-hidden pt-28 pb-16 sm:pt-36 lg:min-h-dvh lg:pb-24">
-
         <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-4 sm:px-8 lg:grid-cols-[1.1fr_0.9fr]">
           <Reveal>
-            <Eyebrow>Salão de cabeleireiro · Portimão</Eyebrow>
+            <Eyebrow>{c.heroEyebrow}</Eyebrow>
             <h1 className="mt-6 text-5xl leading-[0.95] font-light sm:text-7xl lg:text-8xl">
-              A arte de
+              {c.heroLine1}
               <br />
-              <em className="text-accent">cuidar</em> do seu
+              <em className="text-accent">{c.heroAccent}</em> {c.heroLine2}
               <br />
-              cabelo
+              {c.heroLine3}
               <SecretDot />
             </h1>
-            <p className="mt-8 max-w-lg text-lg text-muted-foreground">
-              Madeixas, coloração, alisamento e tratamentos tricológicos pelas mãos da Claudia Rocha — e uma equipa
-              dedicada a unhas e sobrancelhas.
-            </p>
+            <p className="mt-8 max-w-lg text-lg text-muted-foreground">{c.heroSubtitle}</p>
             <div className="mt-10 flex flex-wrap gap-3">
-              <OpenChatButton>Marcar online</OpenChatButton>
+              <OpenChatButton>{c.heroCtaBook}</OpenChatButton>
               <a
                 href={wa}
                 target="_blank"
@@ -80,116 +71,116 @@ export default async function Home() {
                 <MessageCircle className="size-4" /> WhatsApp
               </a>
             </div>
-            <a
-              href="#opinioes"
-              className="mt-10 inline-flex items-center gap-3 text-sm text-muted-foreground transition hover:text-foreground"
-            >
-              <span className="font-serif text-3xl text-foreground">{site.googleRating.toFixed(1).replace(".", ",")}</span>
+            <a href="#opinioes" className="mt-10 inline-flex items-center gap-3 text-sm text-muted-foreground transition hover:text-foreground">
+              <span className="font-serif text-3xl text-foreground">{c.ratingValue}</span>
               <span>
-                <Stars value={site.googleRating} />
+                <Stars value={site.rating} label={t.starsOf5} />
                 <br />
-                {site.googleReviews} opiniões no Google
+                {c.ratingCount} {c.heroRatingLabel}
               </span>
             </a>
           </Reveal>
 
           <Reveal delay={150} className="relative">
             <div className="relative mx-auto aspect-[3/4] max-w-md overflow-hidden rounded-t-[12rem] rounded-b-3xl border border-border lg:max-w-none">
-              <Photo src={site.heroImage} alt="Cabelo trabalhado no Brida Coiffeur" label="Foto principal" priority className="size-full" />
+              <Photo src={site.heroImage} alt={site.name} label={t.photoMain} priority className="size-full" />
             </div>
-            <div className="absolute -bottom-6 left-0 hidden rounded-2xl border border-border bg-card/90 px-5 py-4 backdrop-blur sm:block lg:-left-10">
-              <p className="font-serif text-4xl text-accent">25</p>
-              <p className="font-label text-[10px] tracking-[0.25em] text-muted-foreground uppercase">anos de experiência</p>
-            </div>
+            {(c.heroBadgeValue || c.heroBadgeLabel) && (
+              <div className="absolute -bottom-6 left-0 hidden rounded-2xl border border-border bg-card/90 px-5 py-4 backdrop-blur sm:block lg:-left-10">
+                <p className="font-serif text-4xl text-accent">{c.heroBadgeValue}</p>
+                <p className="font-label text-[10px] tracking-[0.25em] text-muted-foreground uppercase">{c.heroBadgeLabel}</p>
+              </div>
+            )}
           </Reveal>
         </div>
       </section>
 
       {/* FAIXA --------------------------------------------------------------- */}
-      <div className="overflow-hidden border-y border-border py-5" aria-hidden>
-        {/* duas cópias iguais: ao chegar a -50% a 2.ª ocupa o lugar da 1.ª e o ciclo não salta */}
-        <div className="marquee flex w-max whitespace-nowrap">
-          {[...HIGHLIGHTS, ...HIGHLIGHTS].map((h, i) => (
-            <span key={i} className="flex items-center gap-12 pr-12 font-serif text-2xl text-foreground/70 italic">
-              {h} <span className="text-accent not-italic">✦</span>
-            </span>
-          ))}
+      {marquee.length > 0 && (
+        <div className="overflow-hidden border-y border-border py-5" aria-hidden>
+          {/* duas cópias iguais: ao chegar a -50% a 2.ª ocupa o lugar da 1.ª e o ciclo não salta */}
+          <div className="marquee flex w-max whitespace-nowrap">
+            {[...marquee, ...marquee].map((h, i) => (
+              <span key={i} className="flex items-center gap-12 pr-12 font-serif text-2xl text-foreground/70 italic">
+                {h} <span className="text-accent not-italic">{c.marqueeSymbol}</span>
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* SERVIÇOS ------------------------------------------------------------ */}
       <section id="servicos" className="mx-auto max-w-7xl px-4 py-24 sm:px-8 lg:py-32">
         <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
           <Reveal>
-            <Eyebrow>Serviços</Eyebrow>
+            <Eyebrow>{c.servicesEyebrow}</Eyebrow>
             <h2 className="mt-6 text-5xl leading-tight font-light sm:text-6xl">
-              Tratamentos
+              {c.servicesTitle}
               <br />
-              <em className="text-accent">à sua medida</em>
+              <em className="text-accent">{c.servicesAccent}</em>
             </h2>
-            <p className="mt-6 max-w-sm text-muted-foreground">
-              Cada cabelo começa com um diagnóstico. Escolha o serviço, veja as vagas em tempo real e marque em
-              segundos com a nossa assistente.
-            </p>
+            <p className="mt-6 max-w-sm text-muted-foreground">{c.servicesText}</p>
           </Reveal>
           <Reveal delay={120}>
-            <ServiceTabs groups={site.services} />
+            <ServiceTabs groups={site.services} cta={c.servicesCta} note={c.servicesNote} onRequest={c.servicesOnRequest} />
           </Reveal>
         </div>
       </section>
 
       {/* ANTES / DEPOIS ------------------------------------------------------ */}
-      <section id="trabalhos" className="border-y border-border bg-card/40 py-24 lg:py-32">
-        <div className="mx-auto max-w-7xl px-4 sm:px-8">
-          <Reveal className="flex flex-wrap items-end justify-between gap-6">
-            <div>
-              <Eyebrow>Antes & depois</Eyebrow>
-              <h2 className="mt-6 text-5xl font-light sm:text-6xl">
-                Resultados que <em className="text-accent">falam</em>
-              </h2>
+      {site.gallery.length > 0 && (
+        <section id="trabalhos" className="border-y border-border bg-card/40 py-24 lg:py-32">
+          <div className="mx-auto max-w-7xl px-4 sm:px-8">
+            <Reveal className="flex flex-wrap items-end justify-between gap-6">
+              <div>
+                <Eyebrow>{c.galleryEyebrow}</Eyebrow>
+                <h2 className="mt-6 text-5xl font-light sm:text-6xl">
+                  {c.galleryTitle} <em className="text-accent">{c.galleryAccent}</em>
+                </h2>
+              </div>
+              <p className="max-w-xs text-sm text-muted-foreground">{c.galleryHint}</p>
+            </Reveal>
+            <div className="mt-14 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+              {site.gallery.map((g, i) => (
+                <Reveal key={g.id} delay={i * 100}>
+                  <BeforeAfter before={g.before ?? ""} after={g.after ?? ""} title={g.title} />
+                </Reveal>
+              ))}
             </div>
-            <p className="max-w-xs text-sm text-muted-foreground">Arraste a linha para comparar.</p>
-          </Reveal>
-          <div className="mt-14 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {site.gallery.map((g, i) => (
-              <Reveal key={g.after} delay={i * 100}>
-                <BeforeAfter before={g.before} after={g.after} title={g.title} />
-              </Reveal>
-            ))}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* SOBRE --------------------------------------------------------------- */}
       <section id="sobre" className="mx-auto max-w-7xl px-4 py-24 sm:px-8 lg:py-32">
         <div className="grid items-center gap-14 lg:grid-cols-2">
           <Reveal className="relative order-2 lg:order-1">
             <div className="mx-auto aspect-[4/5] max-w-md overflow-hidden rounded-3xl border border-border lg:max-w-none">
-              <Photo src={site.aboutImage} alt="Claudia Rocha, cabeleireira" label="Claudia Rocha" className="size-full" />
+              <Photo src={site.aboutImage} alt={`${c.aboutTitle} ${c.aboutAccent}`} label={`${c.aboutTitle} ${c.aboutAccent}`} className="size-full" />
             </div>
-            <div className="absolute right-0 -bottom-6 max-w-[16rem] sm:right-[max(0px,calc(50%-14rem-2rem))] lg:-right-8 rounded-2xl border border-accent/40 bg-background/90 p-5 backdrop-blur sm:-right-8">
-              <p className="font-label text-[10px] tracking-[0.25em] text-accent uppercase">Especialista</p>
-              <p className="mt-1 font-serif text-xl leading-snug">Tricologia e saúde do couro cabeludo</p>
-            </div>
+            {(c.aboutBadgeLabel || c.aboutBadgeText) && (
+              <div className="absolute right-0 -bottom-6 max-w-[16rem] rounded-2xl border border-accent/40 bg-background/90 p-5 backdrop-blur sm:right-[max(0px,calc(50%-14rem-2rem))] lg:-right-8">
+                <p className="font-label text-[10px] tracking-[0.25em] text-accent uppercase">{c.aboutBadgeLabel}</p>
+                <p className="mt-1 font-serif text-xl leading-snug">{c.aboutBadgeText}</p>
+              </div>
+            )}
           </Reveal>
           <Reveal delay={120} className="order-1 lg:order-2">
-            <Eyebrow>Sobre nós</Eyebrow>
+            <Eyebrow>{c.aboutEyebrow}</Eyebrow>
             <h2 className="mt-6 text-5xl leading-tight font-light sm:text-6xl">
-              Claudia <em className="text-accent">Rocha</em>
+              {c.aboutTitle} <em className="text-accent">{c.aboutAccent}</em>
             </h2>
-            <p className="mt-8 text-lg leading-relaxed text-muted-foreground">{site.about}</p>
-            <dl className="mt-10 grid grid-cols-3 gap-6 border-t border-border pt-8">
-              {[
-                ["25", "anos de experiência"],
-                ["USP", "especialização em tricologia"],
-                ["Londres", "formação internacional"],
-              ].map(([n, l]) => (
-                <div key={l}>
-                  <dt className="font-serif text-3xl text-accent sm:text-4xl">{n}</dt>
-                  <dd className="mt-1 text-xs text-muted-foreground">{l}</dd>
-                </div>
-              ))}
-            </dl>
+            <p className="mt-8 text-lg leading-relaxed whitespace-pre-line text-muted-foreground">{c.aboutText}</p>
+            {c.aboutStats.length > 0 && (
+              <dl className="mt-10 grid grid-cols-3 gap-6 border-t border-border pt-8">
+                {c.aboutStats.slice(0, 3).map((s, i) => (
+                  <div key={i}>
+                    <dt className="font-serif text-3xl text-accent sm:text-4xl">{s.value}</dt>
+                    <dd className="mt-1 text-xs text-muted-foreground">{s.label}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
           </Reveal>
         </div>
       </section>
@@ -198,23 +189,23 @@ export default async function Home() {
       <section id="opinioes" className="border-y border-border bg-card/40 py-24 lg:py-32">
         <div className="mx-auto max-w-7xl px-4 sm:px-8">
           <Reveal className="text-center">
-            <Eyebrow center>Opiniões</Eyebrow>
+            <Eyebrow center>{c.reviewsEyebrow}</Eyebrow>
             <h2 className="mt-6 text-5xl font-light sm:text-6xl">
-              {site.googleRating.toFixed(1).replace(".", ",")} <em className="text-accent">no Google</em>
+              {c.ratingValue} <em className="text-accent">{c.reviewsAccent}</em>
             </h2>
             <p className="mt-3 text-muted-foreground">
-              <Stars value={site.googleRating} /> · {site.googleReviews} opiniões
+              <Stars value={site.rating} label={t.starsOf5} /> · {c.ratingCount} {c.reviewsCountLabel}
             </p>
           </Reveal>
           <div className="mt-14 grid gap-6 md:grid-cols-3">
-            {site.reviews.slice(0, 3).map((r, i) => (
-              <Reveal key={r.name} delay={i * 100}>
+            {c.reviews.slice(0, 6).map((r, i) => (
+              <Reveal key={i} delay={i * 100}>
                 <figure className="flex h-full flex-col rounded-3xl border border-border bg-background p-8">
                   <span className="font-serif text-6xl leading-none text-accent/60">“</span>
                   <blockquote className="mt-2 flex-1 font-serif text-xl leading-snug">{r.text}</blockquote>
                   <figcaption className="mt-6 flex items-center justify-between border-t border-border pt-5 text-sm">
                     <span>{r.name}</span>
-                    <Stars value={r.rating} />
+                    <Stars value={r.rating} label={t.starsOf5} />
                   </figcaption>
                 </figure>
               </Reveal>
@@ -227,22 +218,25 @@ export default async function Home() {
       <section id="agenda" className="relative py-24 lg:py-32">
         <div className="mx-auto max-w-7xl px-4 sm:px-8">
           <Reveal className="mb-14 text-center">
-            <Eyebrow center>Agenda online</Eyebrow>
+            <Eyebrow center>{c.agendaEyebrow}</Eyebrow>
             <h2 className="mt-6 text-5xl font-light sm:text-6xl">
-              Reserve o seu <em className="text-accent">momento</em>
+              {c.agendaTitle} <em className="text-accent">{c.agendaAccent}</em>
             </h2>
-            <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
-              Escolha o serviço e a hora na agenda, ou pergunte no {site.assistant.name}, aqui ao lado. Sem pagamentos online:
-              a marcação confirma-se pelo WhatsApp.
-            </p>
+            <p className="mx-auto mt-4 max-w-lg text-muted-foreground">{c.agendaText}</p>
           </Reveal>
           <Reveal delay={120}>
             <div className="grid items-stretch gap-6 lg:grid-cols-[1.45fr_1fr]">
-              <WeekAgenda groups={site.services} staff={site.staff} hoursRange={site.hoursRange} today={today} />
+              <WeekAgenda
+                groups={site.services}
+                staff={site.staff}
+                hoursRange={site.hoursRange}
+                today={today}
+                me={me ? { name: me.name, phone: me.phone } : null}
+              />
               <InlineChat
                 assistantName={site.assistant.name}
                 greeting={site.assistant.greeting}
-                salonWhatsappUrl={whatsappLink(site.whatsapp, "Olá! Gostaria de falar com o salão.")}
+                salonWhatsappUrl={whatsappLink(site.whatsapp, c.whatsappMessage)}
                 className="h-[640px] lg:h-auto lg:min-h-[640px]"
               />
             </div>
@@ -254,9 +248,9 @@ export default async function Home() {
       <section id="contacto" className="mx-auto max-w-7xl px-4 py-24 sm:px-8 lg:py-32">
         <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr]">
           <Reveal>
-            <Eyebrow>Contacto</Eyebrow>
+            <Eyebrow>{c.contactEyebrow}</Eyebrow>
             <h2 className="mt-6 text-5xl leading-tight font-light sm:text-6xl">
-              Venha <em className="text-accent">visitar-nos</em>
+              {c.contactTitle} <em className="text-accent">{c.contactAccent}</em>
             </h2>
             <ul className="mt-10 space-y-6">
               <li className="flex gap-4">
@@ -264,7 +258,7 @@ export default async function Home() {
                 <div>
                   <p>{site.address}</p>
                   <a href={site.mapsUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-accent hover:underline">
-                    Como chegar
+                    {c.contactDirections}
                   </a>
                 </div>
               </li>
@@ -287,7 +281,7 @@ export default async function Home() {
               </li>
             </ul>
             <div className="mt-10 flex flex-wrap gap-3">
-              <OpenChatButton>Marcar online</OpenChatButton>
+              <OpenChatButton>{c.heroCtaBook}</OpenChatButton>
               <a
                 href={wa}
                 target="_blank"
@@ -301,7 +295,7 @@ export default async function Home() {
           <Reveal delay={120}>
             <div className="h-full min-h-80 overflow-hidden rounded-3xl border border-border">
               <iframe
-                title={`Mapa — ${site.name}`}
+                title={site.name}
                 src={site.mapsEmbedUrl}
                 className="size-full min-h-80 grayscale invert-[0.9] hue-rotate-180"
                 loading="lazy"

@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  mgrAddGalleryPair,
+  mgrAddGalleryItem,
+  mgrUpdateGalleryItem,
   mgrDeleteGalleryItem,
   mgrPhotos,
   mgrRemoveSitePhoto,
@@ -137,104 +138,134 @@ function SlotPhoto({ slot, title, url, onChange, tall }: { slot: "hero" | "about
 
 function Gallery({ items, onChange }: { items: MgrPhotos["gallery"]; onChange: () => void }) {
   const [title, setTitle] = useState("");
-  const [before, setBefore] = useState<File | null>(null);
-  const [after, setAfter] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const flash = useFlash();
-  const preview = (f: File | null) => (f ? URL.createObjectURL(f) : null);
 
   return (
     <Card className="space-y-4">
       <div>
         <p className="font-medium">Antes & depois</p>
-        <p className="text-sm text-muted-foreground">Aparecem no site com o comparador deslizante. Enquanto não houver nenhum, o site mostra espaços reservados.</p>
+        <p className="text-sm text-muted-foreground">
+          Cada par aparece no site com o comparador deslizante. Toque em “Antes” ou “Depois” para pôr a foto; sem foto, o site mostra um espaço reservado.
+        </p>
       </div>
 
-      {items.length > 0 && (
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {items.map((g) => (
-            <li key={g.id} className="flex gap-3 rounded-xl border border-gold/15 bg-black/30 p-3">
-              <div className="grid flex-1 grid-cols-2 gap-1.5">
-                {[g.before, g.after].map((u, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element -- miniaturas das fotos do próprio site
-                  <img key={i} src={u ?? ""} alt={i ? "Depois" : "Antes"} className="aspect-[4/5] w-full rounded-md object-cover" />
-                ))}
-              </div>
-              <div className="flex w-24 flex-col justify-between">
-                <p className="text-sm">{g.title}</p>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (!confirm(`Apagar “${g.title}” do site?`)) return;
-                    flash.show(await mgrDeleteGalleryItem(g.id), "Apagado ✓");
-                    onChange();
-                  }}
-                  className="flex items-center gap-1 text-xs text-red-300 hover:underline"
-                >
-                  <Trash2 className="size-3.5" /> Apagar
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      <ul className="space-y-3">
+        {items.map((g) => (
+          <GalleryItem key={g.id} item={g} onChange={onChange} />
+        ))}
+      </ul>
 
       <form
-        className="space-y-3 rounded-xl border border-dashed border-gold/30 p-4"
+        className="flex flex-wrap items-center gap-3 rounded-xl border border-dashed border-gold/30 p-4"
         onSubmit={async (e) => {
           e.preventDefault();
-          if (!before || !after) return flash.show({ ok: false, error: "Escolha a foto do antes e a do depois." });
           setBusy(true);
-          try {
-            const form = new FormData();
-            form.append("title", title);
-            await addToForm(form, "before", before);
-            await addToForm(form, "after", after);
-            const r = await mgrAddGalleryPair(form);
-            flash.show(r, "Adicionado ao site ✓");
-            if (r.ok) {
-              setTitle("");
-              setBefore(null);
-              setAfter(null);
-              onChange();
-            }
-          } catch {
-            flash.show({ ok: false, error: "Não foi possível ler as fotos." });
-          } finally {
-            setBusy(false);
+          const r = await mgrAddGalleryItem(title);
+          setBusy(false);
+          flash.show(r, "Par adicionado ✓ — agora ponha as fotos");
+          if (r.ok) {
+            setTitle("");
+            onChange();
           }
         }}
       >
-        <p className="text-sm font-medium">Novo antes & depois</p>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Título (ex.: Madeixas)" className={inputCls} aria-label="Título" />
-        <div className="grid grid-cols-2 gap-3">
-          {(
-            [
-              ["Antes", before, setBefore],
-              ["Depois", after, setAfter],
-            ] as const
-          ).map(([label, file, set]) => (
-            <label key={label} className="relative grid aspect-[4/5] cursor-pointer place-items-center overflow-hidden rounded-xl border border-gold/30 bg-black/40 text-sm text-muted-foreground">
-              {file ? (
-                // eslint-disable-next-line @next/next/no-img-element -- pré-visualização local antes de enviar
-                <img src={preview(file)!} alt={label} className="absolute inset-0 size-full object-cover" />
-              ) : (
-                <span className="flex flex-col items-center gap-1">
-                  <ImagePlus className="size-6 text-gold" /> {label}
-                </span>
-              )}
-              <span className="absolute top-2 left-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] tracking-[0.15em] text-white uppercase">{label}</span>
-              <input type="file" accept="image/*" className="hidden" onChange={(e) => set(e.target.files?.[0] ?? null)} />
-            </label>
-          ))}
-        </div>
-        <div className="flex items-center gap-3">
-          <Btn type="submit" disabled={busy}>
-            {busy ? <Loader2 className="size-4 animate-spin" /> : null} Adicionar ao site
-          </Btn>
-          {flash.node}
-        </div>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Novo par — título (ex.: Corte)" className={cn(inputCls, "flex-1")} aria-label="Título do novo par" />
+        <Btn type="submit" variant="ghost" disabled={busy}>
+          <ImagePlus className="size-4" /> Adicionar par
+        </Btn>
+        {flash.node}
       </form>
     </Card>
+  );
+}
+
+function GalleryItem({ item, onChange }: { item: MgrPhotos["gallery"][number]; onChange: () => void }) {
+  const [title, setTitle] = useState(item.title);
+  const [busy, setBusy] = useState<"before" | "after" | "title" | null>(null);
+  const flash = useFlash();
+
+  async function upload(side: "before" | "after", file: File | undefined) {
+    if (!file) return;
+    setBusy(side);
+    try {
+      const form = new FormData();
+      form.append("id", item.id);
+      await addToForm(form, side, file);
+      flash.show(await mgrUpdateGalleryItem(form), "Foto atualizada ✓");
+      onChange();
+    } catch {
+      flash.show({ ok: false, error: "Não foi possível ler essa foto." });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <li className="rounded-xl border border-gold/15 bg-black/30 p-3">
+      <div className="grid grid-cols-[1fr_1fr] gap-2 sm:grid-cols-[8rem_8rem_1fr] sm:gap-3">
+        {(["before", "after"] as const).map((side) => {
+          const url = side === "before" ? item.before : item.after;
+          return (
+            <label
+              key={side}
+              className="relative grid aspect-[4/5] cursor-pointer place-items-center overflow-hidden rounded-lg border border-gold/30 bg-black/40 text-xs text-muted-foreground"
+            >
+              {url ? (
+                // eslint-disable-next-line @next/next/no-img-element -- miniatura de uma foto do próprio site
+                <img src={url} alt={side === "before" ? "Antes" : "Depois"} className="absolute inset-0 size-full object-cover" />
+              ) : (
+                <span className="flex flex-col items-center gap-1">
+                  <ImagePlus className="size-5 text-gold" /> pôr foto
+                </span>
+              )}
+              <span className="absolute top-1.5 left-1.5 rounded-full bg-black/70 px-2 py-0.5 text-[10px] tracking-[0.15em] text-white uppercase">
+                {side === "before" ? "Antes" : "Depois"}
+              </span>
+              {busy === side && (
+                <span className="absolute inset-0 grid place-items-center bg-black/60">
+                  <Loader2 className="size-5 animate-spin text-gold" />
+                </span>
+              )}
+              <input type="file" accept="image/*" className="hidden" onChange={(e) => upload(side, e.target.files?.[0])} />
+            </label>
+          );
+        })}
+        <div className="col-span-2 flex flex-col gap-2 sm:col-span-1">
+          <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} aria-label="Título do par" />
+          <div className="flex flex-wrap items-center gap-2">
+            {title.trim() !== item.title && (
+              <Btn
+                className="h-9 px-4"
+                disabled={busy !== null}
+                onClick={async () => {
+                  setBusy("title");
+                  const form = new FormData();
+                  form.append("id", item.id);
+                  form.append("title", title);
+                  flash.show(await mgrUpdateGalleryItem(form), "Título guardado ✓");
+                  setBusy(null);
+                  onChange();
+                }}
+              >
+                Guardar título
+              </Btn>
+            )}
+            <button
+              type="button"
+              onClick={async () => {
+                if (!confirm(`Apagar “${item.title}” do site?`)) return;
+                flash.show(await mgrDeleteGalleryItem(item.id), "Apagado ✓");
+                onChange();
+              }}
+              className="ml-auto flex items-center gap-1 text-xs text-red-300 hover:underline"
+            >
+              <Trash2 className="size-3.5" /> Apagar par
+            </button>
+          </div>
+          {flash.node}
+        </div>
+      </div>
+    </li>
   );
 }

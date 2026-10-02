@@ -34,7 +34,7 @@ function set(patch: Partial<State>) {
 }
 
 function init(g: string) {
-  if (greeting) return;
+  if (greeting === g) return;
   greeting = g;
   let saved: Partial<State> | null = null;
   try {
@@ -67,6 +67,16 @@ export async function sendChat(text: string) {
   } finally {
     set({ loading: false });
   }
+}
+
+/** Ao mudar de idioma: a próxima conversa começa com a saudação nova. */
+export function resetChatGreeting() {
+  greeting = "";
+  try {
+    sessionStorage.removeItem(KEY);
+  } catch {}
+  state = { messages: [], booking: null, loading: false, error: null };
+  listeners.forEach((l) => l());
 }
 
 export function resetChat() {

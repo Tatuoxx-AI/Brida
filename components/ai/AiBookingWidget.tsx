@@ -5,6 +5,7 @@ import { Sparkles, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { OPEN_CHAT_EVENT } from "@/lib/chat-store";
 import { ChatPanel, type ChatPanelHandle } from "./ChatPanel";
+import { useT } from "@/lib/i18n/client";
 
 const INLINE_ID = "assistente";
 
@@ -15,6 +16,7 @@ const INLINE_ID = "assistente";
  */
 export function AiBookingWidget(props: { assistantName: string; greeting: string; salonWhatsappUrl: string }) {
   const [open, setOpen] = useState(false);
+  const t = useT();
   const panel = useRef<ChatPanelHandle>(null);
   const pending = useRef<string | null>(null);
 
@@ -51,7 +53,7 @@ export function AiBookingWidget(props: { assistantName: string; greeting: string
       <button
         type="button"
         onClick={toggle}
-        aria-label={open ? "Fechar chat" : `Abrir ${props.assistantName}`}
+        aria-label={open ? t.chat.close : `${t.chat.open} ${props.assistantName}`}
         className={cn(
           "fixed right-4 bottom-4 z-50 flex h-14 items-center gap-2 rounded-full bg-accent px-5 text-accent-foreground shadow-xl transition",
           "hover:scale-[1.03] focus-visible:ring-4 focus-visible:ring-ring/40 focus-visible:outline-none",
@@ -59,7 +61,7 @@ export function AiBookingWidget(props: { assistantName: string; greeting: string
         )}
       >
         {open ? <X className="size-5" /> : <Sparkles className="size-5" />}
-        <span className="text-sm font-medium">{open ? "Fechar" : props.assistantName}</span>
+        <span className="text-sm font-medium">{open ? t.chat.close : props.assistantName}</span>
       </button>
 
       {open && (

@@ -6,6 +6,9 @@ import { query } from "@/lib/db";
 import { createBooking, type BookingSummary } from "@/lib/booking";
 import { rateLimit } from "@/lib/rate-limit";
 import { normalizePhone } from "@/lib/phone";
+import { currentClientId, rememberClient } from "@/lib/client-session";
+import { getLocale } from "@/lib/i18n/server";
+import { LOCALE_INFO } from "@/lib/i18n/locales";
 
 // Server Actions da agenda online (secção "Agenda" da landing).
 
@@ -14,7 +17,9 @@ const timeFmt = new Intl.DateTimeFormat("pt-PT", { hour: "2-digit", minute: "2-d
 
 export type AgendaSlot = { start: string; time: string; discount: number };
 export type AgendaDay = { date: string; closed: boolean; slots: AgendaSlot[] };
-export type AgendaBookingResult = { ok: true; booking: BookingSummary } | { ok: false; error: string; code: string };
+export type AgendaBookingResult =
+  | { ok: true; booking: BookingSummary; profileSaved: boolean; profileExists: boolean }
+  | { ok: false; error: string; code: string };
 
 const uuid = z.string().uuid();
 const serviceIds = z.array(uuid).min(1).max(5);
@@ -53,23 +58,33 @@ export async function getWeekSlots(from: string, days: number, ids: string[], st
   return [...out.values()];
 }
 
+const birthDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Indique a data de aniversário.")
+  .refine((d) => {
+    const age = (Date.now() - new Date(`${d}T12:00:00Z`).getTime()) / (365.25 * 864e5);
+    return age >= 3 && age <= 110;
+  }, "Data de aniversário inválida.");
+
 const BookInput = z.object({
   serviceIds,
   staffId: uuid.nullable().optional(),
   start: z.string().datetime({ offset: true }),
-  name: z.string().trim().min(2, "Escreva o seu nome.").max(80),
-  phone: z.string().trim().min(6, "Escreva o seu telemóvel.").max(30),
-  email: z.string().trim().email("Escreva um email válido.").max(120),
-  birthDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Indique a data de aniversário.")
-    .refine((d) => {
-      const age = (Date.now() - new Date(`${d}T12:00:00Z`).getTime()) / (365.25 * 864e5);
-      return age >= 3 && age <= 110;
-    }, "Data de aniversário inválida."),
+  // dados do cliente: obrigatórios, exceto quando o aparelho já tem o perfil guardado
+  name: z.string().trim().max(80).optional(),
+  phone: z.string().trim().max(30).optional(),
+  email: z.string().trim().max(120).optional(),
+  birthDate: z.string().optional(),
   notes: z.string().trim().max(500).optional(),
   // armadilha para bots: campo escondido que pessoas não preenchem
   website: z.string().max(0).optional(),
+});
+
+const ClientData = z.object({
+  name: z.string().trim().min(2, "Escreva o seu nome.").max(80),
+  phone: z.string().trim().min(6, "Escreva o seu telemóvel.").max(30),
+  email: z.string().trim().email("Escreva um email válido.").max(120),
+  birthDate,
 });
 
 export async function bookFromAgenda(raw: z.input<typeof BookInput>): Promise<AgendaBookingResult> {
@@ -82,19 +97,46 @@ export async function bookFromAgenda(raw: z.input<typeof BookInput>): Promise<Ag
   if (!rateLimit(`agenda:${ip}`, 5, 15 * 60_000)) {
     return { ok: false, error: "Muitas marcações seguidas. Tente daqui a pouco ou ligue-nos.", code: "RATE_LIMIT" };
   }
-  if (!normalizePhone(input.phone)) {
+
+  const intl = LOCALE_INFO[await getLocale()].intl;
+  const deviceClient = await currentClientId();
+
+  // aparelho com perfil guardado: marca diretamente na ficha dele
+  if (deviceClient) {
+    const r = await createBooking({
+      serviceIds: input.serviceIds,
+      staffId: input.staffId ?? null,
+      start: input.start,
+      name: input.name ?? "",
+      phone: input.phone ?? "",
+      notes: input.notes,
+      source: "web",
+      profileId: deviceClient,
+      intl,
+    });
+    return r.ok ? { ok: true, booking: r.booking, profileSaved: true, profileExists: false } : r;
+  }
+
+  const c = ClientData.safeParse(input);
+  if (!c.success) return { ok: false, error: c.error.issues[0]?.message ?? "Dados inválidos.", code: "INVALID" };
+  if (!normalizePhone(c.data.phone)) {
     return { ok: false, error: "Telemóvel inválido. Ex.: 912 345 678 ou +351 912 345 678.", code: "INVALID_PHONE" };
   }
 
-  return createBooking({
+  const r = await createBooking({
     serviceIds: input.serviceIds,
     staffId: input.staffId ?? null,
     start: input.start,
-    name: input.name,
-    phone: input.phone,
-    email: input.email,
-    birthDate: input.birthDate,
+    name: c.data.name,
+    phone: c.data.phone,
+    email: c.data.email,
+    birthDate: c.data.birthDate,
     notes: input.notes,
     source: "web",
+    intl,
   });
+  if (!r.ok) return r;
+  // guarda o perfil neste aparelho (só se a ficha é desta pessoa — ver resolveClient)
+  if (r.verified) await rememberClient(r.clientId);
+  return { ok: true, booking: r.booking, profileSaved: r.verified, profileExists: !r.verified };
 }

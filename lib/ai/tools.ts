@@ -14,6 +14,8 @@ export type AgentContext = {
   /** número de onde chegou a mensagem (WhatsApp) — dispensa pedir o telefone */
   phone?: string | null;
   timezone: string;
+  /** formato de data na língua do visitante (ex.: "en-GB") */
+  intl?: string;
 };
 
 export const TOOLS: ChatCompletionFunctionTool[] = [
@@ -200,6 +202,7 @@ async function criarMarcacao(a: z.infer<typeof schemas.criar_marcacao>, ctx: Age
     source: ctx.channel === "whatsapp" ? "whatsapp" : "ai_chat",
     profileId: ctx.profileId,
     knownPhone: ctx.phone,
+    intl: ctx.intl,
   });
   if (!result.ok) return { erro: result.error, codigo: result.code };
 

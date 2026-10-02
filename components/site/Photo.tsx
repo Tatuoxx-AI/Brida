@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -24,6 +24,12 @@ export function Photo({
   compact?: "left" | "right";
 }) {
   const [failed, setFailed] = useState(false);
+  const img = useRef<HTMLImageElement>(null);
+  // se a imagem falhou antes de o React ligar o onError (carregamento rápido), deteta aqui
+  useEffect(() => {
+    const el = img.current;
+    if (el && el.complete && el.naturalWidth === 0) setFailed(true);
+  }, [src]);
 
   if (failed) {
     return (
@@ -58,6 +64,7 @@ export function Photo({
   return (
     // eslint-disable-next-line @next/next/no-img-element -- fotos locais/Storage; o fallback precisa do onError
     <img
+      ref={img}
       src={src}
       alt={alt}
       onError={() => setFailed(true)}

@@ -1,10 +1,6 @@
-export const metadata = { title: "Agendar" };
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return (
-    <main className="mx-auto max-w-5xl px-4 py-16">
-      <h1 className="text-4xl">Agendar</h1>
-      <p className="mt-2 text-muted-foreground">Serviços e add-ons → profissional → data/hora → produtos → sinal.</p>
-    </main>
-  );
+// A marcação vive na secção Agenda da página inicial.
+export default function Agendar() {
+  redirect("/#agenda");
 }

@@ -2,6 +2,8 @@ import "server-only";
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 import { query, one } from "@/lib/db";
+import { resolveContent } from "@/lib/site-data";
+import type { SiteContent } from "@/lib/i18n/content";
 import { SERVICE_CATEGORY_LABEL, type BusinessHoursRow, type SalonSettingsRow, type ServiceCategory } from "@/types/database";
 import { TOOLS, runTool, type AgentContext, type BookingSummary, type ToolState } from "./tools";
 
@@ -53,7 +55,7 @@ async function salonContext() {
     .join("\n");
 
   const prompt = `Chamas-te ${s?.assistant_name ?? "Brida Chat"} e tratas das marcações do ${s?.name ?? "salão"}, um salão de cabeleireiro em Portimão.
-${s?.about ?? ""}
+${resolveContent("pt", (s as { content?: Partial<SiteContent> } | null)?.content ?? {}, {}).aboutText}
 
 Morada: ${s?.address ?? "—"} · Telefone: ${s?.phone ?? "—"}
 Horário: ${horario}

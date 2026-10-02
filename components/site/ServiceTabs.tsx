@@ -5,14 +5,16 @@ import { cn } from "@/lib/utils";
 import { formatMoney } from "@/lib/format";
 import type { SiteServiceGroup } from "@/lib/site-data";
 import { OpenChatButton } from "./OpenChatButton";
+import { useT } from "@/lib/i18n/client";
 
-export function ServiceTabs({ groups }: { groups: SiteServiceGroup[] }) {
+export function ServiceTabs({ groups, cta, note, onRequest }: { groups: SiteServiceGroup[]; cta: string; note: string; onRequest: string }) {
+  const t = useT();
   const [active, setActive] = useState(groups[0]?.key);
   const group = groups.find((g) => g.key === active) ?? groups[0];
 
   return (
     <div>
-      <div role="tablist" aria-label="Categorias de serviços" className="flex flex-wrap gap-2">
+      <div role="tablist" aria-label={t.nav.services} className="flex flex-wrap gap-2">
         {groups.map((g) => (
           <button
             key={g.key}
@@ -42,7 +44,7 @@ export function ServiceTabs({ groups }: { groups: SiteServiceGroup[] }) {
               {s.price ? (
                 <p className="font-serif text-xl text-accent">{formatMoney(s.price)}</p>
               ) : (
-                <p className="font-label text-[11px] tracking-[0.2em] text-muted-foreground uppercase">Sob consulta</p>
+                <p className="font-label text-[11px] tracking-[0.2em] text-muted-foreground uppercase">{onRequest}</p>
               )}
               {s.duration && <p className="text-xs text-muted-foreground">{s.duration} min</p>}
             </div>
@@ -51,8 +53,8 @@ export function ServiceTabs({ groups }: { groups: SiteServiceGroup[] }) {
       </ul>
 
       <div className="mt-8 flex flex-wrap items-center gap-4">
-        <OpenChatButton message={group ? `Quero marcar ${group.label.toLowerCase()}` : undefined}>Ver vagas e marcar</OpenChatButton>
-        <p className="text-sm text-muted-foreground">O preço final depende do comprimento e do diagnóstico do cabelo.</p>
+        <OpenChatButton message={group ? `${t.chat.suggestions[0]}: ${group.label.toLowerCase()}` : undefined}>{cta}</OpenChatButton>
+        {note && <p className="text-sm text-muted-foreground">{note}</p>}
       </div>
     </div>
   );

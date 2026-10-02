@@ -2,7 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { runAgent } from "@/lib/ai/agent";
 import { rateLimit } from "@/lib/rate-limit";
-import { createClient } from "@/lib/supabase/server";
+import { currentClient } from "@/lib/client-session";
+import { getLocale } from "@/lib/i18n/server";
+import { LOCALE_INFO } from "@/lib/i18n/locales";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -29,23 +31,21 @@ export async function POST(request: NextRequest) {
   const parsed = Body.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Pedido inválido." }, { status: 400 });
 
-  // Cliente com sessão: marca na sua ficha e não precisa de dar nome/telefone.
-  let profileId: string | null = null;
-  let extra: string | undefined;
-  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    const supabase = await createClient();
-    const { data: auth } = await supabase.auth.getUser();
-    if (auth.user) {
-      const { data: me } = await supabase.from("profiles").select("id, name, phone").eq("user_id", auth.user.id).maybeSingle();
-      if (me) {
-        profileId = me.id;
-        extra = `O cliente tem sessão iniciada como ${me.name}${me.phone ? ` (${me.phone})` : ""}: não peças nome nem telefone (usa estes valores); pede só email e data de aniversário se ainda não os tiver dado.`;
-      }
-    }
-  }
+  // Cliente com perfil guardado neste aparelho: marca na sua ficha, sem pedir os dados outra vez.
+  const locale = await getLocale();
+  const me = await currentClient();
+  const profileId = me?.id ?? null;
+  const extra = [
+    `Responde sempre em ${LOCALE_INFO[locale].aiName} (a língua escolhida pelo visitante), a não ser que o cliente escreva noutra língua.`,
+    me
+      ? `O cliente tem perfil guardado neste aparelho: ${me.name}${me.phone ? ` (${me.phone})` : ""}${me.email ? `, ${me.email}` : ""}${me.birthDate ? `, aniversário ${me.birthDate}` : ""}. Não peças estes dados; usa-os nas ferramentas.`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   try {
-    const result = await runAgent(parsed.data.messages, { channel: "web", profileId }, extra);
+    const result = await runAgent(parsed.data.messages, { channel: "web", profileId, intl: LOCALE_INFO[locale].intl }, extra);
     return NextResponse.json(result);
   } catch (e) {
     console.error("[ai/chat]", e);

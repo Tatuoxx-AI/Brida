@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
 
 // O painel do gerente vive internamente em /painel, mas só é servido pelo
 // endereço secreto (MANAGER_PATH). Quem tentar /painel diretamente vê um 404.
@@ -19,7 +18,7 @@ export function middleware(request: NextRequest) {
     res.headers.set("X-Robots-Tag", "noindex, nofollow");
     return res;
   }
-  return updateSession(request);
+  return NextResponse.next();
 }
 
 export const config = {

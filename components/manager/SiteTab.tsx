@@ -16,6 +16,7 @@ import {
 import { SERVICE_CATEGORY_LABEL, type BusinessHoursRow, type ServiceCategory } from "@/types/database";
 import { Btn, Card, Field, H2, TextArea, Toggle, inputCls, useFlash } from "./ui";
 import { PhotosSection } from "./PhotosSection";
+import { ContentEditor } from "./ContentEditor";
 
 const DAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -31,6 +32,7 @@ export function SiteTab() {
   return (
     <div className="mx-auto max-w-3xl space-y-10">
       <PhotosSection />
+      <ContentEditor />
       <Business initial={data.business} />
       <Hours initial={data.hours} />
       <Services initial={data.services} onSaved={load} />
@@ -62,7 +64,6 @@ function Business({ initial }: { initial: MgrBusiness }) {
         {field("instagram_url", "Instagram (link)", { type: "url", placeholder: "https://instagram.com/…" })}
         {field("facebook_url", "Facebook (link)", { type: "url", placeholder: "https://facebook.com/…" })}
       </div>
-      <TextArea label="Sobre nós" value={b.about} onChange={(e) => setB({ ...b, about: e.target.value })} />
       <div className="flex items-center gap-3">
         <Btn onClick={async () => flash.show(await mgrSaveBusiness(b))}>Guardar dados</Btn>
         {flash.node}
