@@ -91,6 +91,8 @@ export type SalonSettingsRow = {
   birthday_message: boolean;
   ai_whatsapp_reply: boolean;
   telegram_notify: boolean;
+  hero_image_url: string | null;
+  about_image_url: string | null;
   updated_at: Timestamp;
 };
 

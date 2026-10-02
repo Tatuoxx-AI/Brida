@@ -10,7 +10,7 @@ export async function generateMetadata(): Promise<Metadata> {
     robots: { index: false, follow: false, nocache: true },
     manifest: base ? `${base}/manifest.webmanifest` : undefined,
     appleWebApp: { capable: true, title: "Brida · Painel", statusBarStyle: "black-translucent" },
-    icons: base ? { apple: `${base}/icone/180` } : undefined,
+    icons: base ? { icon: [{ url: "/icon.svg", type: "image/svg+xml" }], apple: `${base}/icone/180` } : { icon: "/icon.svg" },
   };
 }
 

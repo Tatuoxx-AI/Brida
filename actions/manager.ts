@@ -765,3 +765,113 @@ export async function mgrSaveAssistant(raw: MgrAssistant): Promise<Result> {
   siteChanged();
   return { ok: true };
 }
+
+// =============================================================================
+// Fotos do site (Editar site → Fotos)
+// =============================================================================
+export type MgrGalleryItem = { id: string; title: string; before: string | null; after: string; published: boolean };
+export type MgrPhotos = { hero: string | null; about: string | null; gallery: MgrGalleryItem[] };
+
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_BYTES = 4 * 1024 * 1024;
+const mediaId = (url: string | null | undefined) => url?.match(/^\/media\/([0-9a-f-]{36})$/i)?.[1] ?? null;
+
+/** Valida e guarda a imagem; devolve o URL público /media/<id>. */
+async function saveMedia(file: unknown, width?: unknown, height?: unknown): Promise<string> {
+  if (!(file instanceof File) || file.size === 0) throw new Error("Escolha uma foto.");
+  if (!IMAGE_TYPES.includes(file.type)) throw new Error("Use uma foto JPG, PNG ou WebP.");
+  if (file.size > MAX_BYTES) throw new Error("A foto é demasiado grande (máx. 4 MB).");
+  const buf = Buffer.from(await file.arrayBuffer());
+  // confirma pelos primeiros bytes que é mesmo uma imagem (não confiar só no tipo declarado)
+  const isJpeg = buf[0] === 0xff && buf[1] === 0xd8;
+  const isPng = buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  const isWebp = buf.subarray(0, 4).toString() === "RIFF" && buf.subarray(8, 12).toString() === "WEBP";
+  if (!isJpeg && !isPng && !isWebp) throw new Error("O ficheiro não é uma imagem válida.");
+  const row = await one<{ id: string }>(
+    `insert into public.media (mime, data, bytes, width, height) values ($1, $2, $3, $4, $5) returning id`,
+    [isJpeg ? "image/jpeg" : isPng ? "image/png" : "image/webp", buf, buf.length, Number(width) || null, Number(height) || null],
+  );
+  return `/media/${row!.id}`;
+}
+
+async function deleteMedia(...urls: (string | null | undefined)[]) {
+  const ids = urls.map(mediaId).filter(Boolean);
+  if (ids.length) await exec(`delete from public.media where id = any($1::uuid[])`, [ids]);
+}
+
+export async function mgrPhotos(): Promise<MgrPhotos> {
+  await requireManager();
+  const [s, gallery] = await Promise.all([
+    one<{ hero_image_url: string | null; about_image_url: string | null }>(
+      `select hero_image_url, about_image_url from public.salon_settings where id = 1`,
+    ),
+    query<MgrGalleryItem>(
+      `select id, coalesce(title, '') as title, before_url as before, after_url as after, published
+         from public.gallery_items order by sort_order, created_at`,
+    ),
+  ]);
+  return { hero: s?.hero_image_url ?? null, about: s?.about_image_url ?? null, gallery };
+}
+
+/** Troca a foto do topo ("hero") ou da secção "Sobre". */
+export async function mgrSetSitePhoto(form: FormData): Promise<Result> {
+  await requireManager();
+  const slot = z.enum(["hero", "about"]).safeParse(form.get("slot"));
+  if (!slot.success) return fail("Foto inválida.");
+  const col = slot.data === "hero" ? "hero_image_url" : "about_image_url";
+  try {
+    const url = await saveMedia(form.get("file"), form.get("width"), form.get("height"));
+    const old = await one<{ url: string | null }>(`select ${col} as url from public.salon_settings where id = 1`);
+    await exec(`update public.salon_settings set ${col} = $1 where id = 1`, [url]);
+    await deleteMedia(old?.url);
+    siteChanged();
+    return { ok: true };
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : "Não foi possível guardar a foto.");
+  }
+}
+
+export async function mgrRemoveSitePhoto(slotRaw: string): Promise<Result> {
+  await requireManager();
+  const slot = z.enum(["hero", "about"]).parse(slotRaw);
+  const col = slot === "hero" ? "hero_image_url" : "about_image_url";
+  const old = await one<{ url: string | null }>(`select ${col} as url from public.salon_settings where id = 1`);
+  await exec(`update public.salon_settings set ${col} = null where id = 1`);
+  await deleteMedia(old?.url);
+  siteChanged();
+  return { ok: true };
+}
+
+/** Novo par antes & depois. */
+export async function mgrAddGalleryPair(form: FormData): Promise<Result> {
+  await requireManager();
+  const title = String(form.get("title") ?? "").trim().slice(0, 60);
+  if (!title) return fail("Dê um título (ex.: Madeixas).");
+  let before: string | null = null;
+  try {
+    before = await saveMedia(form.get("before"), form.get("beforeWidth"), form.get("beforeHeight"));
+    const after = await saveMedia(form.get("after"), form.get("afterWidth"), form.get("afterHeight"));
+    await exec(
+      `insert into public.gallery_items (title, before_url, after_url, sort_order)
+       values ($1, $2, $3, (select coalesce(max(sort_order), 0) + 10 from public.gallery_items))`,
+      [title, before, after],
+    );
+    siteChanged();
+    return { ok: true };
+  } catch (e) {
+    await deleteMedia(before); // não deixar a 1.ª foto órfã se a 2.ª falhar
+    return fail(e instanceof Error ? e.message : "Não foi possível guardar.");
+  }
+}
+
+export async function mgrDeleteGalleryItem(id: string): Promise<Result> {
+  await requireManager();
+  z.string().uuid().parse(id);
+  const it = await one<{ before_url: string | null; after_url: string }>(
+    `delete from public.gallery_items where id = $1 returning before_url, after_url`,
+    [id],
+  );
+  await deleteMedia(it?.before_url, it?.after_url);
+  siteChanged();
+  return { ok: true };
+}

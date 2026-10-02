@@ -35,6 +35,9 @@ export type SiteData = {
   hours: SiteHours;
   /** primeira abertura e último fecho da semana, para a grelha da agenda */
   hoursRange: { open: number; close: number };
+  /** fotos do topo e da secção "Sobre" (painel → Editar site → Fotos) */
+  heroImage: string;
+  aboutImage: string;
   services: SiteServiceGroup[];
   staff: SiteStaff[];
   gallery: SiteGalleryItem[];
@@ -62,6 +65,8 @@ const FALLBACK: SiteData = {
     { label: "Domingo", value: "Fechado" },
   ],
   hoursRange: { open: 9, close: 19 },
+  heroImage: "/fotos/hero.jpg",
+  aboutImage: "/fotos/claudia.jpg",
   services: [],
   staff: [],
   gallery: [
@@ -167,6 +172,8 @@ export async function getSiteData(): Promise<SiteData> {
       instagramUrl: s?.instagram_url ?? null,
       facebookUrl: s?.facebook_url ?? null,
       hours: groupHours(hours),
+      heroImage: s?.hero_image_url ?? FALLBACK.heroImage,
+      aboutImage: s?.about_image_url ?? FALLBACK.aboutImage,
       hoursRange,
       services: groups,
       staff: staff.map((p) => ({ id: p.id, name: p.name, avatar: p.avatar_url, serviceIds: p.service_ids })),

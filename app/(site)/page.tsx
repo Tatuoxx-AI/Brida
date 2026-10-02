@@ -95,7 +95,7 @@ export default async function Home() {
 
           <Reveal delay={150} className="relative">
             <div className="relative mx-auto aspect-[3/4] max-w-md overflow-hidden rounded-t-[12rem] rounded-b-3xl border border-border lg:max-w-none">
-              <Photo src="/fotos/hero.jpg" alt="Cabelo trabalhado no Brida Coiffeur" label="Foto principal" priority className="size-full" />
+              <Photo src={site.heroImage} alt="Cabelo trabalhado no Brida Coiffeur" label="Foto principal" priority className="size-full" />
             </div>
             <div className="absolute -bottom-6 left-0 hidden rounded-2xl border border-border bg-card/90 px-5 py-4 backdrop-blur sm:block lg:-left-10">
               <p className="font-serif text-4xl text-accent">25</p>
@@ -165,7 +165,7 @@ export default async function Home() {
         <div className="grid items-center gap-14 lg:grid-cols-2">
           <Reveal className="relative order-2 lg:order-1">
             <div className="mx-auto aspect-[4/5] max-w-md overflow-hidden rounded-3xl border border-border lg:max-w-none">
-              <Photo src="/fotos/claudia.jpg" alt="Claudia Rocha, cabeleireira" label="Claudia Rocha" className="size-full" />
+              <Photo src={site.aboutImage} alt="Claudia Rocha, cabeleireira" label="Claudia Rocha" className="size-full" />
             </div>
             <div className="absolute right-0 -bottom-6 max-w-[16rem] sm:right-[max(0px,calc(50%-14rem-2rem))] lg:-right-8 rounded-2xl border border-accent/40 bg-background/90 p-5 backdrop-blur sm:-right-8">
               <p className="font-label text-[10px] tracking-[0.25em] text-accent uppercase">Especialista</p>

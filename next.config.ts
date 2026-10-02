@@ -24,6 +24,8 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false, // o código-fonte não vai para o browser
   // Postgres local em WASM e driver pg ficam fora do bundle (carregados pelo Node)
   serverExternalPackages: ["@electric-sql/pglite", "pg"],
+  // fotos do painel chegam já reduzidas (~0,5 MB); margem para PNG maiores
+  experimental: { serverActions: { bodySizeLimit: "4mb" } },
   images: {
     // fotos da galeria/produtos servidas pelo Supabase Storage
     remotePatterns: [{ protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/public/**" }],

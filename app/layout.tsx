@@ -17,7 +17,13 @@ export const metadata: Metadata = {
     "Salão de cabeleireiro em Portimão: madeixas, coloração, alisamento, tratamentos tricológicos, unhas e sobrancelhas. Marque online.",
   applicationName: "Brida",
   appleWebApp: { capable: true, title: "Brida", statusBarStyle: "black-translucent" },
-  icons: { icon: "/icone-app/192", apple: "/icone-app/180" },
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icone-app/192", type: "image/png", sizes: "192x192" },
+    ],
+    apple: "/icone-app/180",
+  },
   formatDetection: { telephone: false },
 };
 

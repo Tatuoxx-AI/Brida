@@ -113,6 +113,8 @@ create table public.salon_settings (
   birthday_message          boolean not null default false,
   ai_whatsapp_reply         boolean not null default false,  -- a assistente responde no WhatsApp
   telegram_notify           boolean not null default false,
+  hero_image_url            text,          -- foto do topo (painel → Editar site → Fotos)
+  about_image_url           text,          -- foto da secção "Sobre"
   updated_at                timestamptz not null default now()
 );
 
@@ -491,6 +493,17 @@ create table public.integration_secrets (
 );
 
 insert into public.integration_secrets (id) values (1);
+
+-- Fotos do site carregadas pelo painel, servidas em /media/<id>.
+create table public.media (
+  id         uuid primary key default gen_random_uuid(),
+  mime       text not null check (mime in ('image/jpeg', 'image/png', 'image/webp')),
+  data       bytea not null,
+  bytes      int not null check (bytes > 0 and bytes <= 4194304),
+  width      int,
+  height     int,
+  created_at timestamptz not null default now()
+);
 
 -- Aparelhos do gerente que recebem notificações push (Web Push). Só o servidor lê.
 create table public.push_subscriptions (
@@ -1321,6 +1334,7 @@ alter table public.loyalty_redemptions  enable row level security;
 alter table public.manager_notes        enable row level security;  -- só servidor
 alter table public.integration_secrets  enable row level security;  -- só servidor
 alter table public.push_subscriptions   enable row level security;  -- só servidor
+alter table public.media                enable row level security;  -- só servidor
 
 -- Catálogo público --------------------------------------------------------------
 create policy "settings: leitura pública" on public.salon_settings for select using (true);
@@ -1471,6 +1485,7 @@ grant select on public.reviews to anon;  -- só as publicadas passam no RLS (dep
 -- notas do gerente e credenciais: nem utilizadores autenticados (só o servidor)
 revoke all on table public.manager_notes, public.integration_secrets, public.stripe_events, public.push_subscriptions from authenticated;
 revoke all on table public.push_subscriptions from anon;
+revoke all on table public.media from anon, authenticated;
 
 -- =============================================================================
 -- Permissões de funções e views

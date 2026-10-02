@@ -15,6 +15,7 @@ import {
 } from "@/actions/manager";
 import { SERVICE_CATEGORY_LABEL, type BusinessHoursRow, type ServiceCategory } from "@/types/database";
 import { Btn, Card, Field, H2, TextArea, Toggle, inputCls, useFlash } from "./ui";
+import { PhotosSection } from "./PhotosSection";
 
 const DAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -29,6 +30,7 @@ export function SiteTab() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-10">
+      <PhotosSection />
       <Business initial={data.business} />
       <Hours initial={data.hours} />
       <Services initial={data.services} onSaved={load} />
