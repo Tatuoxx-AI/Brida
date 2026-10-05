@@ -46,11 +46,6 @@ export type SiteContent = {
   teamTitle: string;
   teamAccent: string;
   teamText: string;
-  showcaseTitle: string;
-  showcaseAccent: string;
-  showcaseText: string;
-  showcaseCtaChat: string;
-  showcaseCtaAgenda: string;
   reviewsEyebrow: string;
   reviewsAccent: string;
   reviewsCountLabel: string;
@@ -127,11 +122,6 @@ const pt: SiteContent = {
   teamTitle: "Mãos que",
   teamAccent: "cuidam de si",
   teamText: "Talento, técnica e carinho em cada detalhe — conheça quem vai tratar do seu cabelo.",
-  showcaseTitle: "A sua assistente de beleza,",
-  showcaseAccent: "sempre acordada",
-  showcaseText: "Tire dúvidas, descubra o serviço ideal e marque a sua visita a qualquer hora — a Brida Chat responde num instante.",
-  showcaseCtaChat: "Falar com a Brida Chat",
-  showcaseCtaAgenda: "Ver agenda",
   reviewsEyebrow: "Opiniões",
   reviewsAccent: "no Google",
   reviewsCountLabel: "opiniões",
@@ -190,11 +180,6 @@ const en: SiteContent = {
   teamTitle: "Hands that",
   teamAccent: "care for you",
   teamText: "Talent, technique and care in every detail — meet the people who will look after your hair.",
-  showcaseTitle: "Your beauty assistant,",
-  showcaseAccent: "always awake",
-  showcaseText: "Ask questions, find the perfect service and book your visit at any time — Brida Chat replies in an instant.",
-  showcaseCtaChat: "Chat with Brida Chat",
-  showcaseCtaAgenda: "See availability",
   reviewsEyebrow: "Reviews",
   reviewsAccent: "on Google",
   reviewsCountLabel: "reviews",
@@ -256,11 +241,6 @@ const fr: SiteContent = {
   teamTitle: "Des mains qui",
   teamAccent: "prennent soin de vous",
   teamText: "Talent, technique et attention dans chaque détail — découvrez qui prendra soin de vos cheveux.",
-  showcaseTitle: "Votre assistante beauté,",
-  showcaseAccent: "toujours éveillée",
-  showcaseText: "Posez vos questions, trouvez le soin idéal et réservez à toute heure — Brida Chat répond en un instant.",
-  showcaseCtaChat: "Parler à Brida Chat",
-  showcaseCtaAgenda: "Voir l'agenda",
   reviewsEyebrow: "Avis",
   reviewsAccent: "sur Google",
   reviewsCountLabel: "avis",
@@ -322,11 +302,6 @@ const es: SiteContent = {
   teamTitle: "Manos que",
   teamAccent: "te cuidan",
   teamText: "Talento, técnica y cariño en cada detalle — conoce a quien cuidará de tu cabello.",
-  showcaseTitle: "Tu asistente de belleza,",
-  showcaseAccent: "siempre despierta",
-  showcaseText: "Resuelve dudas, descubre el servicio ideal y reserva tu visita a cualquier hora — Brida Chat responde al instante.",
-  showcaseCtaChat: "Hablar con Brida Chat",
-  showcaseCtaAgenda: "Ver agenda",
   reviewsEyebrow: "Opiniones",
   reviewsAccent: "en Google",
   reviewsCountLabel: "opiniones",
@@ -388,11 +363,6 @@ const de: SiteContent = {
   teamTitle: "Hände, die",
   teamAccent: "Sie verwöhnen",
   teamText: "Talent, Technik und Liebe zum Detail — lernen Sie die Menschen kennen, die sich um Ihr Haar kümmern.",
-  showcaseTitle: "Ihre Beauty-Assistentin,",
-  showcaseAccent: "immer wach",
-  showcaseText: "Fragen stellen, die passende Behandlung finden und jederzeit buchen — Brida Chat antwortet sofort.",
-  showcaseCtaChat: "Mit Brida Chat sprechen",
-  showcaseCtaAgenda: "Termine ansehen",
   reviewsEyebrow: "Bewertungen",
   reviewsAccent: "auf Google",
   reviewsCountLabel: "Bewertungen",
@@ -486,16 +456,6 @@ export const CONTENT_FIELDS: { group: string; fields: { key: ContentKey; label: 
       { key: "teamTitle", label: "Título" },
       { key: "teamAccent", label: "Título — parte dourada" },
       { key: "teamText", label: "Texto", long: true },
-    ],
-  },
-  {
-    group: "Brida Chat (secção final)",
-    fields: [
-      { key: "showcaseTitle", label: "Título" },
-      { key: "showcaseAccent", label: "Título — parte dourada" },
-      { key: "showcaseText", label: "Texto", long: true },
-      { key: "showcaseCtaChat", label: "Botão dourado (abre o chat)" },
-      { key: "showcaseCtaAgenda", label: "Botão escuro (vai para a agenda)" },
     ],
   },
   {

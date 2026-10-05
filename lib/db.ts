@@ -40,7 +40,10 @@ async function createExecutor(): Promise<Executor> {
 
     const local = /localhost|127\.0\.0\.1/.test(url);
     const pool = new Pool({
-      connectionString: url,
+      // O pooler do Supabase em modo "session" (5432) só aceita 15 clientes no total; com várias
+      // instâncias na Vercel esgotava ("max clients reached"). O modo "transaction" (6543) é o
+      // indicado para serverless — e não usamos nada que dependa da sessão (set, listen, begin…).
+      connectionString: url.replace(/(pooler\.supabase\.com):5432\//, "$1:6543/"),
       // Supabase exige TLS; a cadeia de certificados varia, o túnel já é cifrado.
       ssl: local || process.env.DATABASE_SSL === "off" ? undefined : { rejectUnauthorized: false },
       max: Number(process.env.DATABASE_POOL_MAX ?? 4),

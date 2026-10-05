@@ -13,7 +13,6 @@ import { WeekAgenda } from "@/components/agenda/WeekAgenda";
 import { InlineChat } from "@/components/ai/InlineChat";
 import { SecretDot } from "@/components/site/SecretDot";
 import { TeamCarousel } from "@/components/site/TeamCarousel";
-import { ChatShowcase } from "@/components/site/ChatShowcase";
 
 export const metadata = { title: { absolute: "Brida Coiffeur By Claudia Rocha · Portimão" } };
 
@@ -311,15 +310,6 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* BRIDA CHAT (secção final, preto e dourado) ---------------------- */}
-      <ChatShowcase
-        assistantName={site.assistant.name}
-        title={c.showcaseTitle}
-        accent={c.showcaseAccent}
-        text={c.showcaseText}
-        ctaChat={c.showcaseCtaChat}
-        ctaAgenda={c.showcaseCtaAgenda}
-      />
     </main>
   );
 }
