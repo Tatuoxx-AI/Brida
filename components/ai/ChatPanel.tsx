@@ -7,6 +7,7 @@ import { formatMoney } from "@/lib/format";
 import { resetChat, sendChat, useChat, type ChatBooking } from "@/lib/chat-store";
 import { useT } from "@/lib/i18n/client";
 import type { UiDict } from "@/lib/i18n/ui";
+import { SilkBackground } from "@/components/site/SilkBackground";
 
 export type ChatPanelHandle = { focus: () => void; send: (text: string) => void };
 
@@ -54,10 +55,14 @@ export const ChatPanel = forwardRef<ChatPanelHandle, Props>(function ChatPanel(
     <section
       aria-label={`${assistantName} · ${t.chat.assistant}`}
       className={cn(
-        "flex min-h-0 flex-col overflow-hidden rounded-[1.75rem] border border-border bg-card/70 shadow-2xl backdrop-blur-xl",
+        "relative isolate flex min-h-0 flex-col overflow-hidden rounded-[1.75rem] border border-accent/30 bg-black shadow-2xl",
         className,
       )}
     >
+      {/* fundo de seda dourada, escurecido para o texto ler bem */}
+      <SilkBackground className="-z-10">
+        <div className="absolute inset-0 bg-black/45" />
+      </SilkBackground>
       <header className="flex items-center gap-3 border-b border-border px-6 py-5">
         <div className="relative grid size-10 shrink-0 place-items-center rounded-full border border-accent/40 bg-accent/10 font-serif text-lg text-accent">
           {assistantName[0]}

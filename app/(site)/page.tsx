@@ -319,7 +319,6 @@ export default async function Home() {
         text={c.showcaseText}
         ctaChat={c.showcaseCtaChat}
         ctaAgenda={c.showcaseCtaAgenda}
-        image={site.heroImage}
       />
     </main>
   );
