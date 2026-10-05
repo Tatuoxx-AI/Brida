@@ -29,7 +29,7 @@ export function ScrollVeins() {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     let w = window.innerWidth;
-    let h = window.innerHeight;
+    let h = Math.max(1, window.innerHeight); // 0 numa janela escondida daria NaN no "%"
     let lastY = window.scrollY;
     let velocity = 0; // suavizada, positiva a descer
     let bend = 0;
@@ -38,7 +38,7 @@ export function ScrollVeins() {
 
     const resize = () => {
       w = window.innerWidth;
-      h = window.innerHeight;
+      h = Math.max(1, window.innerHeight);
       el.setAttribute("viewBox", `0 0 ${w} ${h}`);
     };
 

@@ -10,6 +10,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://*.supabase.co",
   "font-src 'self' data:",
+  "media-src 'self' https://cdn.jiro.build", // vídeo de seda da secção Brida Chat
   `connect-src 'self'${dev ? " ws: wss:" : ""} https://*.supabase.co wss://*.supabase.co`,
   "frame-src https://www.google.com https://maps.google.com",
   "frame-ancestors 'none'",
