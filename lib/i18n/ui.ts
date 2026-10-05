@@ -27,6 +27,9 @@ const pt = {
   agenda: {
     title: "Agenda",
     anyStaff: "Qualquer profissional",
+    whoTitle: "Com quem quer marcar?",
+    proAtTime: "Profissional nesta hora",
+    pickProAtTime: "Escolha a profissional para esta hora",
     approx: "aprox.",
     prev: "anterior",
     next: "próxima",
@@ -139,6 +142,9 @@ const en: UiDict = {
   agenda: {
     title: "Calendar",
     anyStaff: "Any stylist",
+    whoTitle: "Who would you like to book with?",
+    proAtTime: "Your stylist at this time",
+    pickProAtTime: "Choose your stylist for this time",
     approx: "approx.",
     prev: "previous",
     next: "next",
@@ -248,6 +254,9 @@ const fr: UiDict = {
   agenda: {
     title: "Agenda",
     anyStaff: "Peu importe",
+    whoTitle: "Avec qui souhaitez-vous réserver ?",
+    proAtTime: "Votre professionnelle à cette heure",
+    pickProAtTime: "Choisissez la professionnelle pour cette heure",
     approx: "env.",
     prev: "précédente",
     next: "suivante",
@@ -357,6 +366,9 @@ const es: UiDict = {
   agenda: {
     title: "Agenda",
     anyStaff: "Cualquier profesional",
+    whoTitle: "¿Con quién quieres reservar?",
+    proAtTime: "Tu profesional a esta hora",
+    pickProAtTime: "Elige la profesional para esta hora",
     approx: "aprox.",
     prev: "anterior",
     next: "siguiente",
@@ -466,6 +478,9 @@ const de: UiDict = {
   agenda: {
     title: "Kalender",
     anyStaff: "Beliebig",
+    whoTitle: "Bei wem möchten Sie buchen?",
+    proAtTime: "Ihre Stylistin zu dieser Uhrzeit",
+    pickProAtTime: "Wählen Sie Ihre Stylistin für diese Uhrzeit",
     approx: "ca.",
     prev: "zurück",
     next: "weiter",

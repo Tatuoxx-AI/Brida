@@ -15,7 +15,8 @@ import { LOCALE_INFO } from "@/lib/i18n/locales";
 const TZ = "Europe/Lisbon";
 const timeFmt = new Intl.DateTimeFormat("pt-PT", { hour: "2-digit", minute: "2-digit", timeZone: TZ });
 
-export type AgendaSlot = { start: string; time: string; discount: number };
+/** Uma hora livre e as profissionais que a podem fazer (para a cliente saber com quem marca). */
+export type AgendaSlot = { start: string; time: string; discount: number; staffIds: string[] };
 export type AgendaDay = { date: string; closed: boolean; slots: AgendaSlot[] };
 export type AgendaBookingResult =
   | { ok: true; booking: BookingSummary; profileSaved: boolean; profileExists: boolean }
@@ -32,16 +33,16 @@ export async function getWeekSlots(from: string, days: number, ids: string[], st
   if (staffId) uuid.parse(staffId);
   const n = z.number().int().min(1).max(7).parse(days);
 
-  const rows = await query<{ day: string; closed: boolean; slot_start: string | null; discount_percent: number | null }>(
+  const rows = await query<{ day: string; closed: boolean; slot_start: string | null; discount_percent: number | null; staff_ids: string[] | null }>(
     `select d::date as day,
             coalesce(b.is_closed, true) as closed,
-            g.slot_start, g.discount_percent
+            g.slot_start, g.discount_percent, g.staff_ids
        from generate_series($1::date, $1::date + ($2::int - 1), interval '1 day') d
        left join public.business_hours b on b.weekday = extract(dow from d)
        left join lateral (
-         select distinct on (slot_start) slot_start, discount_percent
+         select slot_start, max(discount_percent) as discount_percent, array_agg(staff_id::text order by staff_name) as staff_ids
            from public.get_available_slots(d::date, $3::uuid[], $4::uuid)
-          order by slot_start
+          group by slot_start
        ) g on true
       order by d, g.slot_start`,
     [from, n, ids, staffId],
@@ -51,7 +52,7 @@ export async function getWeekSlots(from: string, days: number, ids: string[], st
   for (const r of rows) {
     const day = out.get(r.day) ?? { date: r.day, closed: r.closed, slots: [] };
     if (r.slot_start) {
-      day.slots.push({ start: r.slot_start, time: timeFmt.format(new Date(r.slot_start)), discount: Number(r.discount_percent ?? 0) });
+      day.slots.push({ start: r.slot_start, time: timeFmt.format(new Date(r.slot_start)), discount: Number(r.discount_percent ?? 0), staffIds: r.staff_ids ?? [] });
     }
     out.set(r.day, day);
   }

@@ -38,6 +38,22 @@ function useDayCount() {
   return n;
 }
 
+/** Retrato redondo da profissional (foto ou inicial). */
+function Avatar({ p, size = 36 }: { p: Pick<SiteStaff, "name" | "avatar">; size?: number }) {
+  return p.avatar ? (
+    // eslint-disable-next-line @next/next/no-img-element -- retratos do próprio site (/media)
+    <img src={p.avatar} alt="" width={size} height={size} className="shrink-0 rounded-full border border-accent/40 object-cover" style={{ width: size, height: size }} />
+  ) : (
+    <span
+      aria-hidden
+      className="grid shrink-0 place-items-center rounded-full border border-accent/40 bg-accent/10 font-serif text-accent italic"
+      style={{ width: size, height: size, fontSize: size * 0.45 }}
+    >
+      {p.name.charAt(0)}
+    </span>
+  );
+}
+
 export function WeekAgenda({
   groups,
   staff,
@@ -67,6 +83,8 @@ export function WeekAgenda({
   const staffForService = staff.filter((p) => !mainId || p.serviceIds.includes(mainId));
   const [staffId, setStaffId] = useState<string | null>(null);
   const staffName = staff.find((p) => p.id === staffId)?.name;
+  // com "qualquer profissional", a cliente pode escolher entre quem está livre na hora escolhida
+  const [slotStaff, setSlotStaff] = useState<string | null>(null);
 
   const dayCount = useDayCount();
   const [start, setStart] = useState(today);
@@ -143,7 +161,7 @@ export function WeekAgenda({
     startSubmit(async () => {
       const res = await bookFromAgenda({
         serviceIds: ids,
-        staffId,
+        staffId: staffId ?? slotStaff,
         start: slot.start,
         ...(me ? { notes: form.notes || undefined } : { ...form, notes: form.notes || undefined }),
       });
@@ -178,22 +196,36 @@ export function WeekAgenda({
       </div>
 
       {/* profissionais */}
-      <div className="mt-5 flex flex-wrap gap-2" role="radiogroup" aria-label="Profissional">
-        {[{ id: null, name: t.agenda.anyStaff }, ...staffForService].map((p) => (
+      <p className="mt-5 font-label text-[10px] tracking-[0.25em] text-muted-foreground uppercase">{t.agenda.whoTitle}</p>
+      <div className="-mx-1 mt-2 flex gap-2 overflow-x-auto px-1 pb-1" role="radiogroup" aria-label={t.agenda.whoTitle}>
+        {[{ id: null, name: t.agenda.anyStaff, avatar: null, jobTitle: "" }, ...staffForService].map((p) => (
           <button
             key={p.id ?? "any"}
             type="button"
             role="radio"
             aria-checked={staffId === p.id}
-            onClick={() => setStaffId(p.id)}
+            onClick={() => {
+              setStaffId(p.id);
+              setSlotStaff(null);
+            }}
             className={cn(
-              "flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
+              "flex shrink-0 items-center gap-2.5 rounded-full border py-1.5 pr-4 pl-1.5 text-left text-sm transition",
               staffId === p.id
                 ? "border-accent bg-accent text-accent-foreground"
                 : "border-border text-muted-foreground hover:border-accent/50 hover:text-foreground",
             )}
           >
-            <User className="size-3.5" /> {p.name}
+            {p.id ? (
+              <Avatar p={p} size={32} />
+            ) : (
+              <span className="grid size-8 place-items-center rounded-full border border-current/30">
+                <User className="size-3.5" />
+              </span>
+            )}
+            <span className="flex flex-col leading-tight">
+              <span>{p.name}</span>
+              {p.jobTitle && <span className={cn("text-[11px]", staffId === p.id ? "opacity-75" : "text-muted-foreground")}>{p.jobTitle}</span>}
+            </span>
           </button>
         ))}
       </div>
@@ -335,7 +367,10 @@ export function WeekAgenda({
               <button
                 key={s.start}
                 type="button"
-                onClick={() => setSlot(s)}
+                onClick={() => {
+                  setSlot(s);
+                  setSlotStaff(null);
+                }}
                 aria-pressed={slot?.start === s.start}
                 className={cn(
                   "rounded-full border px-4 py-1.5 text-sm tabular-nums transition",
@@ -347,6 +382,8 @@ export function WeekAgenda({
               </button>
             ))}
           </div>
+
+          {slot && <SlotStaff slot={slot} staff={staff} staffId={staffId} chosen={slotStaff} onChoose={setSlotStaff} t={t} />}
 
           <form onSubmit={submit} className="mt-5 grid gap-3 sm:grid-cols-2">
             {me ? (
@@ -483,6 +520,68 @@ function Confirmation({ booking, onClose, t, saved }: { booking: BookingSummary;
       <button type="button" onClick={onClose} className="mt-4 block text-xs text-muted-foreground underline-offset-4 hover:underline">
         {t.booking.another}
       </button>
+    </div>
+  );
+}
+
+/** Quem vai fazer o serviço na hora escolhida: a profissional escolhida, a única livre, ou escolha entre as livres. */
+function SlotStaff({
+  slot,
+  staff,
+  staffId,
+  chosen,
+  onChoose,
+  t,
+}: {
+  slot: AgendaSlot;
+  staff: SiteStaff[];
+  staffId: string | null;
+  chosen: string | null;
+  onChoose: (id: string | null) => void;
+  t: UiDict;
+}) {
+  const free = (staffId ? [staffId] : slot.staffIds).map((id) => staff.find((p) => p.id === id)).filter((p): p is SiteStaff => !!p);
+  if (!free.length) return null;
+  if (free.length === 1) {
+    const p = free[0];
+    return (
+      <div className="mt-4 flex items-center gap-3 rounded-xl border border-accent/30 bg-accent/5 px-4 py-3">
+        <Avatar p={p} size={44} />
+        <div className="leading-tight">
+          <p className="font-label text-[10px] tracking-[0.25em] text-accent uppercase">{t.agenda.proAtTime}</p>
+          <p className="mt-1 font-serif text-lg">{p.name}</p>
+          {p.jobTitle && <p className="text-xs text-muted-foreground">{p.jobTitle}</p>}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-4">
+      <p className="font-label text-[10px] tracking-[0.25em] text-accent uppercase">{t.agenda.pickProAtTime}</p>
+      <div className="mt-2 flex flex-wrap gap-2" role="radiogroup" aria-label={t.agenda.pickProAtTime}>
+        {[null, ...free].map((p) => (
+          <button
+            key={p?.id ?? "any"}
+            type="button"
+            role="radio"
+            aria-checked={chosen === (p?.id ?? null)}
+            onClick={() => onChoose(p?.id ?? null)}
+            className={cn(
+              "flex items-center gap-2 rounded-full border py-1 pr-4 pl-1 text-sm transition",
+              chosen === (p?.id ?? null) ? "border-accent bg-accent text-accent-foreground" : "border-border hover:border-accent/60",
+            )}
+          >
+            {p ? (
+              <Avatar p={p} size={28} />
+            ) : (
+              <span className="grid size-7 place-items-center rounded-full border border-current/30">
+                <User className="size-3" />
+              </span>
+            )}
+            {p?.name ?? t.agenda.anyStaff}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
