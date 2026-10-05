@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { ImagePlus, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   mgrSaveBusiness,
   mgrSaveHours,
   mgrSaveService,
   mgrSaveStaff,
+  mgrSaveStaffProfile,
   mgrSiteData,
   type MgrBusiness,
   type MgrService,
@@ -15,7 +16,7 @@ import {
 } from "@/actions/manager";
 import { SERVICE_CATEGORY_LABEL, type BusinessHoursRow, type ServiceCategory } from "@/types/database";
 import { Btn, Card, Field, H2, TextArea, Toggle, inputCls, useFlash } from "./ui";
-import { PhotosSection } from "./PhotosSection";
+import { PhotosSection, addToForm } from "./PhotosSection";
 import { ContentEditor } from "./ContentEditor";
 
 const DAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
@@ -223,16 +224,15 @@ function Team({ initial, onSaved }: { initial: MgrStaff[]; onSaved: () => void }
   return (
     <section className="space-y-4">
       <H2>Equipa</H2>
-      <p className="text-sm text-muted-foreground">Quem aparece para escolher na agenda do site. Novas profissionais fazem todos os serviços.</p>
-      <ul className="space-y-2">
+      <p className="text-sm text-muted-foreground">
+        Quem aparece na secção «A nossa equipa» e para escolher na agenda. O cargo é traduzido sozinho para as outras línguas; as redes só aparecem se
+        tiverem link. Novas profissionais fazem todos os serviços.
+      </p>
+      <div className="space-y-3">
         {initial.map((p) => (
-          <li key={p.id} className="flex items-center gap-3 rounded-xl border border-gold/15 bg-[#141210] px-4 py-3">
-            <span className="flex-1">{p.name}</span>
-            <span className="text-xs text-muted-foreground">{p.services} serviços</span>
-            <Toggle on={p.active} label={`${p.name} ativa`} onChange={async (x) => (flash.show(await mgrSaveStaff({ id: p.id, name: p.name, active: x })), onSaved())} />
-          </li>
+          <MemberCard key={p.id} member={p} onSaved={onSaved} />
         ))}
-      </ul>
+      </div>
       <form
         className="flex gap-2"
         onSubmit={async (e) => {
@@ -252,5 +252,104 @@ function Team({ initial, onSaved }: { initial: MgrStaff[]; onSaved: () => void }
       </form>
       {flash.node}
     </section>
+  );
+}
+
+function MemberCard({ member: p, onSaved }: { member: MgrStaff; onSaved: () => void }) {
+  const [f, setF] = useState({
+    name: p.name,
+    job_title: p.job_title ?? "",
+    instagram: p.socials?.instagram ?? "",
+    facebook: p.socials?.facebook ?? "",
+    tiktok: p.socials?.tiktok ?? "",
+    team_order: String(p.team_order ?? 0),
+  });
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [removePhoto, setRemovePhoto] = useState(false);
+  const [preview, setPreview] = useState<string | null>(p.avatar_url);
+  const [busy, setBusy] = useState(false);
+  const flash = useFlash();
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
+
+  const save = async () => {
+    setBusy(true);
+    const form = new FormData();
+    form.append("id", p.id);
+    for (const [k, v] of Object.entries(f)) form.append(k, v.trim());
+    if (photo) await addToForm(form, "photo", photo);
+    else if (removePhoto) form.append("removePhoto", "1");
+    const r = await mgrSaveStaffProfile(form);
+    setBusy(false);
+    flash.show(r);
+    if (r.ok) {
+      setPhoto(null);
+      setRemovePhoto(false);
+      onSaved();
+    }
+  };
+
+  return (
+    <Card className="space-y-4">
+      <div className="flex items-center gap-4">
+        <label className="group relative grid size-20 shrink-0 cursor-pointer place-items-center overflow-hidden rounded-2xl border border-gold/25 bg-black/40">
+          {preview ? (
+            // eslint-disable-next-line @next/next/no-img-element -- pré-visualização local ou /media
+            <img src={preview} alt={p.name} className="size-full object-cover" />
+          ) : (
+            <span className="font-serif text-3xl text-gold italic">{f.name.charAt(0) || "?"}</span>
+          )}
+          <span className="absolute inset-0 grid place-items-center bg-black/60 opacity-0 transition group-hover:opacity-100">
+            <ImagePlus className="size-5 text-gold" />
+          </span>
+          <input
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            aria-label={`Foto de ${p.name}`}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              setPhoto(file);
+              setRemovePhoto(false);
+              setPreview(URL.createObjectURL(file));
+            }}
+          />
+        </label>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-serif text-xl">{p.name}</p>
+          <p className="text-xs text-muted-foreground">{p.services} serviços · toque na foto para trocar</p>
+          {preview && (
+            <button
+              type="button"
+              className="mt-1 text-xs text-red-300 hover:underline"
+              onClick={() => {
+                setPhoto(null);
+                setRemovePhoto(true);
+                setPreview(null);
+              }}
+            >
+              Remover foto
+            </button>
+          )}
+        </div>
+        <Toggle on={p.active} label={`${p.name} ativa`} onChange={async (x) => (flash.show(await mgrSaveStaff({ id: p.id, name: p.name, active: x })), onSaved())} />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-[1fr_1fr_90px]">
+        <Field label="Nome" value={f.name} onChange={set("name")} required />
+        <Field label="Cargo" value={f.job_title} onChange={set("job_title")} placeholder="Ex.: Colorista" />
+        <Field label="Ordem" type="number" min={0} max={99} value={f.team_order} onChange={set("team_order")} />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Field label="Instagram" type="url" value={f.instagram} onChange={set("instagram")} placeholder="https://instagram.com/…" />
+        <Field label="Facebook" type="url" value={f.facebook} onChange={set("facebook")} placeholder="https://facebook.com/…" />
+        <Field label="TikTok" type="url" value={f.tiktok} onChange={set("tiktok")} placeholder="https://tiktok.com/@…" />
+      </div>
+      <div className="flex items-center gap-3">
+        <Btn onClick={save} disabled={busy}>
+          {busy ? "A guardar…" : "Guardar"}
+        </Btn>
+        {flash.node}
+      </div>
+    </Card>
   );
 }

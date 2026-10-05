@@ -395,7 +395,16 @@ export type MgrService = {
   active: boolean;
   sort_order: number;
 };
-export type MgrStaff = { id: string; name: string; active: boolean; services: number };
+export type MgrStaff = {
+  id: string;
+  name: string;
+  active: boolean;
+  services: number;
+  avatar_url: string | null;
+  job_title: string | null;
+  socials: { instagram?: string; facebook?: string; tiktok?: string };
+  team_order: number;
+};
 export type MgrBusiness = {
   name: string;
   area: string | null;
@@ -421,8 +430,9 @@ export async function mgrSiteData(): Promise<{ business: MgrBusiness; hours: Bus
          from public.services order by sort_order, name`,
     ),
     query<MgrStaff>(
-      `select p.id, p.name, p.active, (select count(*) from public.staff_services s where s.staff_id = p.id)::int as services
-         from public.profiles p where p.role in ('staff', 'admin') order by p.created_at`,
+      `select p.id, p.name, p.active, (select count(*) from public.staff_services s where s.staff_id = p.id)::int as services,
+              p.avatar_url, p.job_title, p.socials, p.team_order
+         from public.profiles p where p.role in ('staff', 'admin') order by p.team_order, p.created_at`,
     ),
   ]);
   return { business: business!, hours, services, staff };
@@ -1104,6 +1114,66 @@ export async function mgrUpdateGalleryItem(form: FormData): Promise<Result> {
         await exec(`update public.gallery_items set ${side}_url = $2 where id = $1`, [id.data, url]);
         await deleteMedia(side === "before" ? cur.before_url : cur.after_url);
       }
+    }
+    siteChanged();
+    return { ok: true };
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : "Não foi possível guardar.");
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Equipa no site (foto, cargo, redes) — Editar site → Equipa
+// -----------------------------------------------------------------------------
+const socialUrl = z.union([z.literal(""), z.string().trim().url().max(300)]);
+
+/** Atualiza a apresentação de uma profissional. form: id, name, job_title, instagram, facebook, tiktok, team_order, photo? */
+export async function mgrSaveStaffProfile(form: FormData): Promise<Result> {
+  await requireManager();
+  const id = z.string().uuid().safeParse(form.get("id"));
+  if (!id.success) return fail("Profissional inválida.");
+  const name = String(form.get("name") ?? "").trim().slice(0, 80);
+  if (name.length < 2) return fail("Escreva o nome.");
+  const jobTitle = String(form.get("job_title") ?? "").trim().slice(0, 80);
+  const urls = {
+    instagram: socialUrl.safeParse(String(form.get("instagram") ?? "")),
+    facebook: socialUrl.safeParse(String(form.get("facebook") ?? "")),
+    tiktok: socialUrl.safeParse(String(form.get("tiktok") ?? "")),
+  };
+  for (const [k, r] of Object.entries(urls)) if (!r.success) return fail(`Link do ${k} inválido (comece por https://).`);
+  const socials = Object.fromEntries(Object.entries(urls).filter(([, r]) => r.success && r.data).map(([k, r]) => [k, (r as { data: string }).data]));
+  const order = Math.max(0, Math.min(99, Number(form.get("team_order")) || 0));
+
+  const cur = await one<{ avatar_url: string | null; job_title: string | null }>(
+    `select avatar_url, job_title from public.profiles where id = $1 and role in ('staff', 'admin')`,
+    [id.data],
+  );
+  if (!cur) return fail("Profissional não encontrada.");
+  try {
+    let avatar = cur.avatar_url;
+    const photo = form.get("photo");
+    if (photo instanceof File && photo.size > 0) {
+      avatar = await saveMedia(photo, form.get("photoWidth"), form.get("photoHeight"));
+      await deleteMedia(cur.avatar_url);
+    } else if (form.get("removePhoto") === "1") {
+      await deleteMedia(cur.avatar_url);
+      avatar = null;
+    }
+    const titleChanged = jobTitle !== (cur.job_title ?? "");
+    await exec(
+      `update public.profiles set name = $2, job_title = nullif($3, ''), socials = $4, team_order = $5, avatar_url = $6
+              ${titleChanged ? ", i18n = '{}'" : ""}
+        where id = $1`,
+      [id.data, name, jobTitle, socials, order, avatar],
+    );
+    // cargo nas outras línguas
+    if (titleChanged && jobTitle) {
+      const i18n: Record<string, { job_title: string }> = {};
+      for (const l of TARGETS) {
+        const out = await translateObject({ job_title: jobTitle }, l);
+        if (out?.job_title) i18n[l] = { job_title: out.job_title };
+      }
+      if (Object.keys(i18n).length) await exec(`update public.profiles set i18n = $2 where id = $1`, [id.data, i18n]);
     }
     siteChanged();
     return { ok: true };

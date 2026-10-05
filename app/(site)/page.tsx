@@ -12,6 +12,7 @@ import { Reveal } from "@/components/site/Reveal";
 import { WeekAgenda } from "@/components/agenda/WeekAgenda";
 import { InlineChat } from "@/components/ai/InlineChat";
 import { SecretDot } from "@/components/site/SecretDot";
+import { TeamCarousel } from "@/components/site/TeamCarousel";
 
 export const metadata = { title: { absolute: "Brida Coiffeur By Claudia Rocha · Portimão" } };
 
@@ -184,6 +185,9 @@ export default async function Home() {
           </Reveal>
         </div>
       </section>
+
+      {/* EQUIPA -------------------------------------------------------------- */}
+      <TeamCarousel members={site.staff} eyebrow={c.teamEyebrow} title={c.teamTitle} accent={c.teamAccent} text={c.teamText} />
 
       {/* OPINIÕES ------------------------------------------------------------ */}
       <section id="opinioes" className="border-y border-border bg-card/40 py-24 lg:py-32">

@@ -3,7 +3,7 @@ import type { Locale } from "./locales";
 // Textos fixos da interface (não editáveis no painel), nas 5 línguas.
 
 const pt = {
-  nav: { services: "Serviços", work: "Trabalhos", about: "Sobre", reviews: "Opiniões", agenda: "Agenda", contact: "Contacto" },
+  nav: { services: "Serviços", work: "Trabalhos", about: "Sobre", team: "Equipa", reviews: "Opiniões", agenda: "Agenda", contact: "Contacto" },
   book: "Marcar",
   callSalon: "Ligar para o salão",
   openMenu: "Abrir menu",
@@ -17,6 +17,8 @@ const pt = {
   after: "Depois",
   compare: "Comparar antes e depois",
   photoMain: "Foto principal",
+  prevMember: "Anterior",
+  nextMember: "Seguinte",
   groups: { cabelo: "Cabelo", unhas: "Unhas", sobrancelhas: "Sobrancelhas", barbearia: "Barbearia", estetica: "Estética" } as Record<string, string>,
   days: ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"],
   daysShort: ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"],
@@ -113,7 +115,7 @@ const pt = {
 export type UiDict = typeof pt;
 
 const en: UiDict = {
-  nav: { services: "Services", work: "Our work", about: "About", reviews: "Reviews", agenda: "Booking", contact: "Contact" },
+  nav: { services: "Services", work: "Our work", about: "About", team: "Team", reviews: "Reviews", agenda: "Booking", contact: "Contact" },
   book: "Book",
   callSalon: "Call the salon",
   openMenu: "Open menu",
@@ -127,6 +129,8 @@ const en: UiDict = {
   after: "After",
   compare: "Compare before and after",
   photoMain: "Main photo",
+  prevMember: "Previous member",
+  nextMember: "Next member",
   groups: { cabelo: "Hair", unhas: "Nails", sobrancelhas: "Brows", barbearia: "Barber", estetica: "Beauty" },
   days: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
   daysShort: ["sun", "mon", "tue", "wed", "thu", "fri", "sat"],
@@ -220,7 +224,7 @@ const en: UiDict = {
 };
 
 const fr: UiDict = {
-  nav: { services: "Prestations", work: "Réalisations", about: "À propos", reviews: "Avis", agenda: "Réserver", contact: "Contact" },
+  nav: { services: "Prestations", work: "Réalisations", about: "À propos", team: "Équipe", reviews: "Avis", agenda: "Réserver", contact: "Contact" },
   book: "Réserver",
   callSalon: "Appeler le salon",
   openMenu: "Ouvrir le menu",
@@ -234,6 +238,8 @@ const fr: UiDict = {
   after: "Après",
   compare: "Comparer avant et après",
   photoMain: "Photo principale",
+  prevMember: "Précédent",
+  nextMember: "Suivant",
   groups: { cabelo: "Cheveux", unhas: "Ongles", sobrancelhas: "Sourcils", barbearia: "Barbier", estetica: "Esthétique" },
   days: ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"],
   daysShort: ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"],
@@ -327,7 +333,7 @@ const fr: UiDict = {
 };
 
 const es: UiDict = {
-  nav: { services: "Servicios", work: "Trabajos", about: "Nosotros", reviews: "Opiniones", agenda: "Reservar", contact: "Contacto" },
+  nav: { services: "Servicios", work: "Trabajos", about: "Nosotros", team: "Equipo", reviews: "Opiniones", agenda: "Reservar", contact: "Contacto" },
   book: "Reservar",
   callSalon: "Llamar al salón",
   openMenu: "Abrir menú",
@@ -341,6 +347,8 @@ const es: UiDict = {
   after: "Después",
   compare: "Comparar antes y después",
   photoMain: "Foto principal",
+  prevMember: "Anterior",
+  nextMember: "Siguiente",
   groups: { cabelo: "Cabello", unhas: "Uñas", sobrancelhas: "Cejas", barbearia: "Barbería", estetica: "Estética" },
   days: ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"],
   daysShort: ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"],
@@ -434,7 +442,7 @@ const es: UiDict = {
 };
 
 const de: UiDict = {
-  nav: { services: "Leistungen", work: "Arbeiten", about: "Über uns", reviews: "Bewertungen", agenda: "Termin", contact: "Kontakt" },
+  nav: { services: "Leistungen", work: "Arbeiten", about: "Über uns", team: "Team", reviews: "Bewertungen", agenda: "Termin", contact: "Kontakt" },
   book: "Buchen",
   callSalon: "Salon anrufen",
   openMenu: "Menü öffnen",
@@ -448,6 +456,8 @@ const de: UiDict = {
   after: "Nachher",
   compare: "Vorher und nachher vergleichen",
   photoMain: "Hauptfoto",
+  prevMember: "Zurück",
+  nextMember: "Weiter",
   groups: { cabelo: "Haare", unhas: "Nägel", sobrancelhas: "Augenbrauen", barbearia: "Barbier", estetica: "Kosmetik" },
   days: ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"],
   daysShort: ["so", "mo", "di", "mi", "do", "fr", "sa"],

@@ -12,7 +12,8 @@ export type SiteService = { id: string; name: string; description: string | null
 export type SiteServiceGroup = { key: string; label: string; items: SiteService[] };
 export type SiteGalleryItem = { id: string; title: string; before: string | null; after: string | null };
 export type SiteHours = { label: string; value: string }[];
-export type SiteStaff = { id: string; name: string; avatar: string | null; serviceIds: string[] };
+export type SiteSocials = { instagram?: string; facebook?: string; tiktok?: string };
+export type SiteStaff = { id: string; name: string; avatar: string | null; serviceIds: string[]; jobTitle: string; socials: SiteSocials };
 
 export type SiteData = {
   locale: Locale;
@@ -101,9 +102,15 @@ export async function getSiteData(locale: Locale = "pt"): Promise<SiteData> {
       is_addon: boolean;
       i18n: Partial<Record<Locale, { name?: string; description?: string }>>;
     }>(`select id, name, description, category, price, duration_minutes, is_addon, i18n from public.services where active order by sort_order, name`),
-    query<{ id: string; name: string; avatar_url: string | null; service_ids: string[] }>(
-      `select id, name, avatar_url, service_ids from public.public_staff order by name`,
-    ),
+    query<{
+      id: string;
+      name: string;
+      avatar_url: string | null;
+      service_ids: string[];
+      job_title: string | null;
+      socials: SiteSocials | null;
+      i18n: Partial<Record<Locale, { job_title?: string }>> | null;
+    }>(`select id, name, avatar_url, service_ids, job_title, socials, i18n from public.public_staff order by team_order, name`),
     query<{ id: string; title: string | null; before_url: string | null; after_url: string | null; i18n: Partial<Record<Locale, string>> }>(
       `select id, title, before_url, after_url, i18n from public.gallery_items where published order by sort_order, created_at`,
     ),
@@ -164,7 +171,14 @@ export async function getSiteData(locale: Locale = "pt"): Promise<SiteData> {
     heroImage: s?.hero_image_url ?? "/fotos/hero.jpg",
     aboutImage: s?.about_image_url ?? "/fotos/claudia.jpg",
     services: groups,
-    staff: staff.map((p) => ({ id: p.id, name: p.name, avatar: p.avatar_url, serviceIds: p.service_ids })),
+    staff: staff.map((p) => ({
+      id: p.id,
+      name: p.name,
+      avatar: p.avatar_url,
+      serviceIds: p.service_ids,
+      jobTitle: (locale !== "pt" && p.i18n?.[locale]?.job_title) || p.job_title || "",
+      socials: p.socials ?? {},
+    })),
     gallery: gallery.map((g, i) => ({
       id: g.id,
       title: (locale !== "pt" && g.i18n?.[locale]) || g.title || "",

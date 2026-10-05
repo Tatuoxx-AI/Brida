@@ -28,7 +28,7 @@ async function shrink(file: File, max = 1800): Promise<{ blob: Blob; width: numb
   return { blob, width, height };
 }
 
-async function addToForm(form: FormData, key: string, file: File) {
+export async function addToForm(form: FormData, key: string, file: File) {
   const { blob, width, height } = await shrink(file);
   form.append(key, new File([blob], "foto.jpg", { type: "image/jpeg" }));
   form.append(`${key === "file" ? "" : key}${key === "file" ? "width" : "Width"}`, String(width));

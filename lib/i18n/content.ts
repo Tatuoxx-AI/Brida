@@ -42,6 +42,10 @@ export type SiteContent = {
   aboutBadgeLabel: string;
   aboutBadgeText: string;
   aboutStats: Stat[];
+  teamEyebrow: string;
+  teamTitle: string;
+  teamAccent: string;
+  teamText: string;
   reviewsEyebrow: string;
   reviewsAccent: string;
   reviewsCountLabel: string;
@@ -114,6 +118,10 @@ const pt: SiteContent = {
     { value: "USP", label: "especialização em tricologia" },
     { value: "Londres", label: "formação internacional" },
   ],
+  teamEyebrow: "A nossa equipa",
+  teamTitle: "Mãos que",
+  teamAccent: "cuidam de si",
+  teamText: "Talento, técnica e carinho em cada detalhe — conheça quem vai tratar do seu cabelo.",
   reviewsEyebrow: "Opiniões",
   reviewsAccent: "no Google",
   reviewsCountLabel: "opiniões",
@@ -168,6 +176,10 @@ const en: SiteContent = {
     { value: "USP", label: "trichology specialisation" },
     { value: "London", label: "international training" },
   ],
+  teamEyebrow: "Our team",
+  teamTitle: "Hands that",
+  teamAccent: "care for you",
+  teamText: "Talent, technique and care in every detail — meet the people who will look after your hair.",
   reviewsEyebrow: "Reviews",
   reviewsAccent: "on Google",
   reviewsCountLabel: "reviews",
@@ -225,6 +237,10 @@ const fr: SiteContent = {
     { value: "USP", label: "spécialisation en trichologie" },
     { value: "Londres", label: "formation internationale" },
   ],
+  teamEyebrow: "Notre équipe",
+  teamTitle: "Des mains qui",
+  teamAccent: "prennent soin de vous",
+  teamText: "Talent, technique et attention dans chaque détail — découvrez qui prendra soin de vos cheveux.",
   reviewsEyebrow: "Avis",
   reviewsAccent: "sur Google",
   reviewsCountLabel: "avis",
@@ -282,6 +298,10 @@ const es: SiteContent = {
     { value: "USP", label: "especialización en tricología" },
     { value: "Londres", label: "formación internacional" },
   ],
+  teamEyebrow: "Nuestro equipo",
+  teamTitle: "Manos que",
+  teamAccent: "te cuidan",
+  teamText: "Talento, técnica y cariño en cada detalle — conoce a quien cuidará de tu cabello.",
   reviewsEyebrow: "Opiniones",
   reviewsAccent: "en Google",
   reviewsCountLabel: "opiniones",
@@ -339,6 +359,10 @@ const de: SiteContent = {
     { value: "USP", label: "Spezialisierung in Trichologie" },
     { value: "London", label: "internationale Ausbildung" },
   ],
+  teamEyebrow: "Unser Team",
+  teamTitle: "Hände, die",
+  teamAccent: "Sie verwöhnen",
+  teamText: "Talent, Technik und Liebe zum Detail — lernen Sie die Menschen kennen, die sich um Ihr Haar kümmern.",
   reviewsEyebrow: "Bewertungen",
   reviewsAccent: "auf Google",
   reviewsCountLabel: "Bewertungen",
@@ -423,6 +447,15 @@ export const CONTENT_FIELDS: { group: string; fields: { key: ContentKey; label: 
       { key: "aboutBadgeLabel", label: "Selo sobre a foto — linha pequena" },
       { key: "aboutBadgeText", label: "Selo sobre a foto — texto" },
       { key: "aboutStats", label: "Três destaques (número + texto)", kind: "stats" },
+    ],
+  },
+  {
+    group: "A nossa equipa",
+    fields: [
+      { key: "teamEyebrow", label: "Linha pequena" },
+      { key: "teamTitle", label: "Título" },
+      { key: "teamAccent", label: "Título — parte dourada" },
+      { key: "teamText", label: "Texto", long: true },
     ],
   },
   {

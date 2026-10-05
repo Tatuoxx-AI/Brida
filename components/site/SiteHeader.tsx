@@ -19,6 +19,7 @@ export function SiteHeader({ phone, brandName, brandSub }: { phone: string; bran
     { href: "/#servicos", label: t.nav.services },
     { href: "/#trabalhos", label: t.nav.work },
     { href: "/#sobre", label: t.nav.about },
+    { href: "/#equipa", label: t.nav.team },
     { href: "/#opinioes", label: t.nav.reviews },
     { href: "/#agenda", label: t.nav.agenda },
     { href: "/#contacto", label: t.nav.contact },

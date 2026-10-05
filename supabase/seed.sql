@@ -37,8 +37,10 @@ insert into public.services (name, category, duration_minutes, price, is_addon, 
   ('Hidratação',                 'tratamento',   30,  0, true,  210);
 
 -- Equipa: a Claudia faz todos os serviços. Outras profissionais entram pelo painel.
-insert into public.profiles (role, name, bio, calendar_color)
-values ('admin', 'Claudia Rocha', '25 anos de experiência · tricologia (USP) · formação em Londres', '#d6b77a');
+insert into public.profiles (role, name, bio, calendar_color, job_title, i18n)
+values ('admin', 'Claudia Rocha', '25 anos de experiência · tricologia (USP) · formação em Londres', '#d6b77a',
+        'Fundadora & cabeleireira',
+        '{"en":{"job_title":"Founder & hairstylist"},"fr":{"job_title":"Fondatrice & coiffeuse"},"es":{"job_title":"Fundadora y peluquera"},"de":{"job_title":"Gründerin & Friseurin"}}');
 
 insert into public.staff_services (staff_id, service_id)
 select p.id, s.id from public.profiles p cross join public.services s where p.name = 'Claudia Rocha';

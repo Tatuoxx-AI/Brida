@@ -162,6 +162,10 @@ create table public.profiles (
   bio              text,
   commission_rate  numeric(5,2) not null default 0 check (commission_rate between 0 and 100),
   calendar_color   text,
+  job_title        text,                              -- cargo mostrado na secção "A nossa equipa"
+  socials          jsonb not null default '{}',       -- {instagram, facebook, tiktok}
+  i18n             jsonb not null default '{}',       -- {en:{job_title}, …}
+  team_order       int not null default 0,
   active           boolean not null default true,
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
@@ -1257,7 +1261,8 @@ create trigger review_fill before insert on public.reviews
 -- privilégios do dono para o anon poder ler sem acesso à tabela profiles.
 create view public.public_staff as
 select p.id, p.name, p.avatar_url, p.bio, p.calendar_color,
-       coalesce(array_agg(ss.service_id) filter (where ss.service_id is not null), '{}') as service_ids
+       coalesce(array_agg(ss.service_id) filter (where ss.service_id is not null), '{}') as service_ids,
+       p.job_title, p.socials, p.i18n, p.team_order
   from public.profiles p
   left join public.staff_services ss on ss.staff_id = p.id
  where p.role in ('staff', 'admin') and p.active
