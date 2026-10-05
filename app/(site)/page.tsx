@@ -13,6 +13,7 @@ import { WeekAgenda } from "@/components/agenda/WeekAgenda";
 import { InlineChat } from "@/components/ai/InlineChat";
 import { SecretDot } from "@/components/site/SecretDot";
 import { TeamCarousel } from "@/components/site/TeamCarousel";
+import { BrandsMarquee } from "@/components/site/BrandsMarquee";
 
 export const metadata = { title: { absolute: "Brida Coiffeur By Claudia Rocha · Portimão" } };
 
@@ -310,6 +311,8 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* MARCAS (só aparece com logótipos no painel) ------------------------ */}
+      <BrandsMarquee brands={site.brands} title={c.brandsTitle} />
     </main>
   );
 }

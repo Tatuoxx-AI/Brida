@@ -1181,3 +1181,64 @@ export async function mgrSaveStaffProfile(form: FormData): Promise<Result> {
     return fail(e instanceof Error ? e.message : "Não foi possível guardar.");
   }
 }
+
+// -----------------------------------------------------------------------------
+// Marcas de produtos (faixa de logótipos) — Editar site → Marcas
+// -----------------------------------------------------------------------------
+export type MgrBrand = { id: string; name: string; logo: string; w: number; h: number };
+
+async function readBrands(): Promise<MgrBrand[]> {
+  const s = await one<{ brands: MgrBrand[] | null }>(`select brands from public.salon_settings where id = 1`);
+  return s?.brands ?? [];
+}
+
+async function writeBrands(list: MgrBrand[]) {
+  await exec(`update public.salon_settings set brands = $1 where id = 1`, [JSON.stringify(list)]);
+  siteChanged();
+}
+
+export async function mgrBrands(): Promise<MgrBrand[]> {
+  await requireManager();
+  return readBrands();
+}
+
+/** Nova marca. form: name, logo (PNG/WebP com transparência), logoWidth, logoHeight */
+export async function mgrAddBrand(form: FormData): Promise<Result> {
+  await requireManager();
+  const name = String(form.get("name") ?? "").trim().slice(0, 60);
+  if (name.length < 2) return fail("Escreva o nome da marca.");
+  const w = Number(form.get("logoWidth"));
+  const h = Number(form.get("logoHeight"));
+  if (!(w > 0 && h > 0)) return fail("Escolha o logótipo.");
+  const list = await readBrands();
+  if (list.length >= 30) return fail("Máximo de 30 marcas.");
+  try {
+    const logo = await saveMedia(form.get("logo"), w, h);
+    await writeBrands([...list, { id: crypto.randomUUID(), name, logo, w, h }]);
+    return { ok: true };
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : "Não foi possível guardar o logótipo.");
+  }
+}
+
+export async function mgrDeleteBrand(id: string): Promise<Result> {
+  await requireManager();
+  const list = await readBrands();
+  const b = list.find((x) => x.id === id);
+  if (!b) return fail("Marca não encontrada.");
+  await writeBrands(list.filter((x) => x.id !== id));
+  await deleteMedia(b.logo);
+  return { ok: true };
+}
+
+/** Muda a posição na faixa (-1 = para a esquerda, 1 = para a direita). */
+export async function mgrMoveBrand(id: string, dir: number): Promise<Result> {
+  await requireManager();
+  const list = await readBrands();
+  const i = list.findIndex((x) => x.id === id);
+  const j = i + (dir < 0 ? -1 : 1);
+  if (i < 0 || j < 0 || j >= list.length) return { ok: true };
+  [list[i], list[j]] = [list[j], list[i]];
+  await writeBrands(list);
+  return { ok: true };
+}

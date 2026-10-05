@@ -46,6 +46,7 @@ export type SiteContent = {
   teamTitle: string;
   teamAccent: string;
   teamText: string;
+  brandsTitle: string;
   reviewsEyebrow: string;
   reviewsAccent: string;
   reviewsCountLabel: string;
@@ -122,6 +123,7 @@ const pt: SiteContent = {
   teamTitle: "Mãos que",
   teamAccent: "cuidam de si",
   teamText: "Talento, técnica e carinho em cada detalhe — conheça quem vai tratar do seu cabelo.",
+  brandsTitle: "Trabalhamos com as melhores marcas",
   reviewsEyebrow: "Opiniões",
   reviewsAccent: "no Google",
   reviewsCountLabel: "opiniões",
@@ -180,6 +182,7 @@ const en: SiteContent = {
   teamTitle: "Hands that",
   teamAccent: "care for you",
   teamText: "Talent, technique and care in every detail — meet the people who will look after your hair.",
+  brandsTitle: "We work with the finest brands",
   reviewsEyebrow: "Reviews",
   reviewsAccent: "on Google",
   reviewsCountLabel: "reviews",
@@ -241,6 +244,7 @@ const fr: SiteContent = {
   teamTitle: "Des mains qui",
   teamAccent: "prennent soin de vous",
   teamText: "Talent, technique et attention dans chaque détail — découvrez qui prendra soin de vos cheveux.",
+  brandsTitle: "Nous travaillons avec les meilleures marques",
   reviewsEyebrow: "Avis",
   reviewsAccent: "sur Google",
   reviewsCountLabel: "avis",
@@ -302,6 +306,7 @@ const es: SiteContent = {
   teamTitle: "Manos que",
   teamAccent: "te cuidan",
   teamText: "Talento, técnica y cariño en cada detalle — conoce a quien cuidará de tu cabello.",
+  brandsTitle: "Trabajamos con las mejores marcas",
   reviewsEyebrow: "Opiniones",
   reviewsAccent: "en Google",
   reviewsCountLabel: "opiniones",
@@ -363,6 +368,7 @@ const de: SiteContent = {
   teamTitle: "Hände, die",
   teamAccent: "Sie verwöhnen",
   teamText: "Talent, Technik und Liebe zum Detail — lernen Sie die Menschen kennen, die sich um Ihr Haar kümmern.",
+  brandsTitle: "Wir arbeiten mit den besten Marken",
   reviewsEyebrow: "Bewertungen",
   reviewsAccent: "auf Google",
   reviewsCountLabel: "Bewertungen",
@@ -458,6 +464,7 @@ export const CONTENT_FIELDS: { group: string; fields: { key: ContentKey; label: 
       { key: "teamText", label: "Texto", long: true },
     ],
   },
+  { group: "Marcas", fields: [{ key: "brandsTitle", label: "Frase por cima dos logótipos" }] },
   {
     group: "Opiniões",
     fields: [

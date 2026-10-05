@@ -18,6 +18,7 @@ import { SERVICE_CATEGORY_LABEL, type BusinessHoursRow, type ServiceCategory } f
 import { Btn, Card, Field, H2, TextArea, Toggle, inputCls, useFlash } from "./ui";
 import { PhotosSection, addToForm } from "./PhotosSection";
 import { ContentEditor } from "./ContentEditor";
+import { BrandsSection } from "./BrandsSection";
 
 const DAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -38,6 +39,7 @@ export function SiteTab() {
       <Hours initial={data.hours} />
       <Services initial={data.services} onSaved={load} />
       <Team initial={data.staff} onSaved={load} />
+      <BrandsSection />
       <p className="text-center text-xs text-muted-foreground">As alterações aparecem no site e na assistente logo depois de guardar.</p>
     </div>
   );

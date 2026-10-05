@@ -115,6 +115,7 @@ create table public.salon_settings (
   telegram_notify           boolean not null default false,
   hero_image_url            text,          -- foto do topo (painel → Editar site → Fotos)
   about_image_url           text,          -- foto da secção "Sobre"
+  brands                    jsonb not null default '[]'::jsonb, -- marcas de produtos [{id,name,logo,w,h}]
   content                   jsonb not null default '{}',  -- textos do site alterados no painel (pt)
   content_i18n              jsonb not null default '{}',  -- traduções automáticas {en:{…},fr:{…},…}
   updated_at                timestamptz not null default now()

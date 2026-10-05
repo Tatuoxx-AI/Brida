@@ -12,6 +12,9 @@ export type SiteService = { id: string; name: string; description: string | null
 export type SiteServiceGroup = { key: string; label: string; items: SiteService[] };
 export type SiteGalleryItem = { id: string; title: string; before: string | null; after: string | null };
 export type SiteHours = { label: string; value: string }[];
+/** Logótipo de marca: imagem com transparência em /media e o seu tamanho original. */
+export type SiteBrand = { id: string; name: string; logo: string; w: number; h: number };
+
 export type SiteSocials = { instagram?: string; facebook?: string; tiktok?: string };
 export type SiteStaff = { id: string; name: string; avatar: string | null; serviceIds: string[]; jobTitle: string; socials: SiteSocials };
 
@@ -30,6 +33,8 @@ export type SiteData = {
   hoursRange: { open: number; close: number };
   heroImage: string;
   aboutImage: string;
+  /** marcas de produtos usadas no salão (faixa de logótipos) */
+  brands: SiteBrand[];
   services: SiteServiceGroup[];
   staff: SiteStaff[];
   gallery: SiteGalleryItem[];
@@ -88,7 +93,7 @@ const parseRating = (v: string) => {
 
 export async function getSiteData(locale: Locale = "pt"): Promise<SiteData> {
   const [s, hours, services, staff, gallery] = await Promise.all([
-    one<SalonSettingsRow & { content: Partial<SiteContent>; content_i18n: Partial<Record<Locale, Partial<SiteContent>>> }>(
+    one<SalonSettingsRow & { brands: SiteBrand[] | null; content: Partial<SiteContent>; content_i18n: Partial<Record<Locale, Partial<SiteContent>>> }>(
       `select * from public.salon_settings where id = 1`,
     ),
     query<BusinessHoursRow>(`select * from public.business_hours order by weekday`),
@@ -170,6 +175,7 @@ export async function getSiteData(locale: Locale = "pt"): Promise<SiteData> {
     hoursRange,
     heroImage: s?.hero_image_url ?? "/fotos/hero.jpg",
     aboutImage: s?.about_image_url ?? "/fotos/claudia.jpg",
+    brands: (s?.brands ?? []).filter((b) => b?.logo && b.w > 0 && b.h > 0),
     services: groups,
     staff: staff.map((p) => ({
       id: p.id,
