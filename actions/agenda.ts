@@ -17,7 +17,8 @@ const timeFmt = new Intl.DateTimeFormat("pt-PT", { hour: "2-digit", minute: "2-d
 
 /** Uma hora livre e as profissionais que a podem fazer (para a cliente saber com quem marca). */
 export type AgendaSlot = { start: string; time: string; discount: number; staffIds: string[] };
-export type AgendaDay = { date: string; closed: boolean; slots: AgendaSlot[] };
+/** `booked`: horas (0–23) que já têm marcação — mostram o carimbo "B" na grelha. */
+export type AgendaDay = { date: string; closed: boolean; slots: AgendaSlot[]; booked: number[] };
 export type AgendaBookingResult =
   | { ok: true; booking: BookingSummary; profileSaved: boolean; profileExists: boolean }
   | { ok: false; error: string; code: string };
@@ -48,9 +49,23 @@ export async function getWeekSlots(from: string, days: number, ids: string[], st
     [from, n, ids, staffId],
   );
 
+  // horas com marcação (para o carimbo "B" na grelha) — só a hora, nada sobre a cliente
+  const busy = await query<{ day: string; hour: number }>(
+    `with s as (select coalesce((select timezone from public.salon_settings where id = 1), 'Europe/Lisbon') as tz)
+     select distinct to_char(h, 'YYYY-MM-DD') as day, extract(hour from h)::int as hour
+       from public.appointments a, s,
+            generate_series(date_trunc('hour', a.start_time at time zone s.tz),
+                            (a.end_time at time zone s.tz) - interval '1 second', interval '1 hour') h
+      where a.status in ('pending', 'confirmed', 'in_progress')
+        and a.start_time < ($1::date + $2::int)::timestamp at time zone s.tz
+        and a.end_time > $1::date::timestamp at time zone s.tz
+        and ($3::uuid is null or a.staff_id = $3::uuid)`,
+    [from, n, staffId],
+  );
+
   const out = new Map<string, AgendaDay>();
   for (const r of rows) {
-    const day = out.get(r.day) ?? { date: r.day, closed: r.closed, slots: [] };
+    const day = out.get(r.day) ?? { date: r.day, closed: r.closed, slots: [], booked: busy.filter((b) => b.day === r.day).map((b) => b.hour) };
     if (r.slot_start) {
       day.slots.push({ start: r.slot_start, time: timeFmt.format(new Date(r.slot_start)), discount: Number(r.discount_percent ?? 0), staffIds: r.staff_ids ?? [] });
     }

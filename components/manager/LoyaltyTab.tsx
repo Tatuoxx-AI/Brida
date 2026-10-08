@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { mgrLoyalty, mgrRedeem, mgrSaveLoyalty, type MgrRedemption } from "@/actions/manager";
-import { Btn, Card, Empty, Field, H2, useFlash } from "./ui";
+import { Minus, Plus } from "lucide-react";
+import { mgrAdjustStamps, mgrClients, mgrLoyalty, mgrRedeem, mgrSaveLoyalty, type MgrClient, type MgrRedemption } from "@/actions/manager";
+import { BStamp } from "@/components/shared/BStamp";
+import { Btn, Card, Empty, Field, H2, inputCls, useFlash } from "./ui";
 import { LoyaltyCard } from "@/components/shared/LoyaltyCard";
 
 export function LoyaltyTab() {
@@ -23,11 +25,13 @@ export function LoyaltyTab() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-10">
+      <StampsManager required={data.stampsRequired} reward={data.reward} onChange={load} />
+
       <section className="space-y-4">
         <H2>Configuração do cartão</H2>
         <Field label="Carimbos necessários" type="number" min={2} max={50} value={stamps} onChange={(e) => setStamps(Number(e.target.value))} />
         <Field label='Recompensa (ex.: "uma hidratação grátis" ou "20% de desconto")' value={reward} onChange={(e) => setReward(e.target.value)} />
-        <p className="text-xs text-muted-foreground">Cada visita concluída na agenda dá 1 carimbo automaticamente. Também pode dar carimbos à mão em Clientes.</p>
+        <p className="text-xs text-muted-foreground">Cada visita concluída na agenda dá 1 carimbo automaticamente. Também pode dar e tirar carimbos à mão aqui em baixo.</p>
         <div className="flex items-center gap-3">
           <Btn onClick={async () => (flash.show(await mgrSaveLoyalty(stamps, reward)), load())}>Guardar cartão</Btn>
           {flash.node}
@@ -86,5 +90,80 @@ function RedemptionRow({ r, onDone }: { r: MgrRedemption; onDone: () => void }) 
         Recusar
       </Btn>
     </Card>
+  );
+}
+
+/** Dar e tirar carimbos às clientes registadas, com o cartão delas à vista. */
+function StampsManager({ required, reward, onChange }: { required: number; reward: string; onChange: () => void }) {
+  const [search, setSearch] = useState("");
+  const [list, setList] = useState<MgrClient[] | null>(null);
+  const [open, setOpen] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const flash = useFlash();
+  const load = useCallback((q: string) => {
+    mgrClients(q).then(setList);
+  }, []);
+  useEffect(() => {
+    const t = setTimeout(() => load(search), 250);
+    return () => clearTimeout(t);
+  }, [search, load]);
+
+  const adjust = async (c: MgrClient, d: number) => {
+    setBusy(true);
+    const r = await mgrAdjustStamps(c.id, d);
+    setBusy(false);
+    flash.show(r, d > 0 ? `Carimbo dado a ${c.name.split(" ")[0]} ✓` : `Carimbo retirado a ${c.name.split(" ")[0]} ✓`);
+    load(search);
+    onChange();
+  };
+
+  return (
+    <section className="space-y-3">
+      <H2>Dar e tirar carimbos</H2>
+      <p className="text-sm text-muted-foreground">Procure a cliente pelo nome ou telemóvel, toque nela e use + / −. Cada carimbo é o “B” da Brida no cartão dela.</p>
+      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Procurar cliente…" className={inputCls} aria-label="Procurar cliente" />
+      {flash.node}
+      {list === null ? (
+        <p className="text-sm text-muted-foreground">A carregar…</p>
+      ) : list.length === 0 ? (
+        <Empty>Nenhuma cliente encontrada.</Empty>
+      ) : (
+        <ul className="divide-y divide-gold/10 overflow-hidden rounded-2xl border border-gold/15 bg-[#141210]">
+          {list.map((c) => (
+            <li key={c.id}>
+              <button
+                type="button"
+                onClick={() => setOpen(open === c.id ? null : c.id)}
+                aria-expanded={open === c.id}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gold/5"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{c.name}</span>
+                  {c.phone && <span className="text-xs text-muted-foreground">{c.phone}</span>}
+                </span>
+                <span className="flex items-center gap-1.5 text-sm text-gold">
+                  {c.stamps > 0 && <BStamp size={18} />}
+                  {c.stamps}/{required}
+                </span>
+              </button>
+              {open === c.id && (
+                <div className="space-y-4 border-t border-gold/10 px-4 pt-4 pb-5">
+                  <LoyaltyCard name={c.name} stamps={Math.min(c.stamps, required)} required={required} reward={reward} />
+                  <div className="flex items-center justify-center gap-3">
+                    <Btn variant="ghost" disabled={busy || c.stamps === 0} onClick={() => adjust(c, -1)}>
+                      <Minus className="size-4" /> Tirar
+                    </Btn>
+                    <span className="min-w-14 text-center font-serif text-3xl text-gold">{c.stamps}</span>
+                    <Btn disabled={busy} onClick={() => adjust(c, 1)}>
+                      <Plus className="size-4" /> Dar carimbo
+                    </Btn>
+                  </div>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }

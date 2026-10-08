@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { BStamp } from "./BStamp";
 
 /** Cartão de carimbos (frente/verso). Reutilizável na área de cliente. */
 export type LoyaltyLabels = { client: string; stamps: string; equals: string; flip: string; rules: string[] };
@@ -52,17 +53,18 @@ export function LoyaltyCard({
               <span className="grid size-11 place-items-center rounded-full border border-gold/60 font-serif text-xl text-gold italic">B</span>
             </div>
             <div className="my-auto grid gap-2.5" style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
-              {Array.from({ length: required }, (_, i) => (
-                <span
-                  key={i}
-                  className={cn(
-                    "mx-auto grid size-8 place-items-center rounded-full border text-[10px] font-semibold",
-                    i < stamps ? "border-gold bg-gold/25 text-gold shadow-[0_0_10px] shadow-gold/30" : "border-gold/20 text-gold/25",
-                  )}
-                >
-                  B
-                </span>
-              ))}
+              {Array.from({ length: required }, (_, i) =>
+                i < stamps ? (
+                  <BStamp key={i} size={32} rotate={i % 2 ? 8 : -8} className="mx-auto" />
+                ) : (
+                  <span
+                    key={i}
+                    className="mx-auto grid size-8 place-items-center rounded-full border border-gold/20 text-[10px] font-semibold text-gold/25"
+                  >
+                    B
+                  </span>
+                ),
+              )}
             </div>
             <div className="flex items-end justify-between">
               <p>

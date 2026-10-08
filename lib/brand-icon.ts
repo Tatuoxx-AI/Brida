@@ -2,7 +2,7 @@
 // texto) para sair igual no separador do browser, no ecrã do telemóvel e nos avisos.
 
 // B serifado numa caixa 100×100 (contorno exterior + duas "barrigas" vazadas)
-const B_PATH =
+export const B_PATH =
   "M24 14 H57 C73 14 82 22 82 34 C82 43 76 49 68 51 C79 53 86 61 86 72 C86 86 75 92 59 92 H24 V86 H31 V20 H24 Z " +
   "M44 21 V47 H55 C64 47 69 42 69 34 C69 26 64 21 55 21 Z " +
   "M44 54 V85 H57 C67 85 73 80 73 70 C73 60 66 54 56 54 Z";

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ArrowLeft, ArrowRight, CalendarCheck, Loader2, MessageCircle, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { BStamp } from "@/components/shared/BStamp";
 import type { SiteServiceGroup, SiteStaff } from "@/lib/site-data";
 import type { BookingSummary } from "@/lib/booking";
 import { bookFromAgenda, getWeekSlots, type AgendaDay, type AgendaSlot } from "@/actions/agenda";
@@ -320,6 +321,7 @@ export function WeekAgenda({
                 const day = days.find((d) => d.date === date);
                 const list = slotsAt(day, h);
                 const free = list.length > 0;
+                const booked = !!day?.booked.includes(h);
                 const selected = cell?.date === date && cell.hour === h;
                 const discount = Math.max(0, ...list.map((s) => s.discount));
                 return (
@@ -328,7 +330,7 @@ export function WeekAgenda({
                     type="button"
                     disabled={!free}
                     onClick={() => choose(date, h, list)}
-                    aria-label={`${WEEKDAY[dow(date)]} ${ddmm(date)} ${h}h — ${free ? t.agenda.free(list.length) : t.agenda.unavailable}`}
+                    aria-label={`${WEEKDAY[dow(date)]} ${ddmm(date)} ${h}h — ${free ? t.agenda.free(list.length) : booked ? t.agenda.booked : t.agenda.unavailable}`}
                     className={cn(
                       "group relative h-12 rounded-xl border transition sm:h-14",
                       free
@@ -342,6 +344,15 @@ export function WeekAgenda({
                         {list[0].time}
                       </span>
                     )}
+                    {/* carimbo da Brida nas horas já reservadas (grande se a hora está cheia, pequeno no canto se ainda há vaga) */}
+                    {booked &&
+                      (free ? (
+                        <BStamp size={16} rotate={-10} className="absolute bottom-1 left-1 opacity-90" />
+                      ) : (
+                        <span className="absolute inset-0 grid place-items-center">
+                          <BStamp size={30} rotate={(h * 7 + i * 11) % 2 ? -9 : 7} className="animate-in zoom-in-50 fade-in duration-500" />
+                        </span>
+                      ))}
                     {discount > 0 && (
                       <span className="absolute -top-1.5 -right-1 rounded-full bg-accent px-1.5 text-[9px] font-semibold text-accent-foreground">
                         -{discount}%
