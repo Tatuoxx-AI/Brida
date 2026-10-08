@@ -6,6 +6,7 @@ import { z } from "zod";
 import { dbErrorMessage, exec, one, query } from "@/lib/db";
 import { checkPassword, endManagerSession, requireManager, startManagerSession } from "@/lib/manager-auth";
 import { rateLimit } from "@/lib/rate-limit";
+import { getWidgetAgenda, hashWidgetToken, newWidgetToken, type WidgetAgenda } from "@/lib/widget";
 import { normalizePhone } from "@/lib/phone";
 import { bookingError, resolveClient } from "@/lib/booking";
 import { invalidateAgentCache } from "@/lib/ai/agent";
@@ -1241,4 +1242,39 @@ export async function mgrMoveBrand(id: string, dir: number): Promise<Result> {
   [list[i], list[j]] = [list[j], list[i]];
   await writeBrands(list);
   return { ok: true };
+}
+
+// -----------------------------------------------------------------------------
+// Widget da agenda no ecrã inicial (Instalar App → Widget)
+// -----------------------------------------------------------------------------
+export type MgrWidgetKey = { id: string; label: string; created_at: string; last_used_at: string | null };
+
+export async function mgrWidgetKeys(): Promise<MgrWidgetKey[]> {
+  await requireManager();
+  return query<MgrWidgetKey>(`select id, label, created_at, last_used_at from public.widget_tokens order by created_at desc`);
+}
+
+/** Cria uma chave para um telemóvel; a chave em claro só é devolvida agora (guarda-se o hash). */
+export async function mgrCreateWidgetKey(labelRaw: string): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
+  await requireManager();
+  const label = String(labelRaw ?? "").trim().slice(0, 60);
+  if (!label) return { ok: false, error: "Dê um nome ao telemóvel (ex.: iPhone da Claudia)." };
+  const count = await one<{ n: number }>(`select count(*)::int as n from public.widget_tokens`);
+  if ((count?.n ?? 0) >= 20) return { ok: false, error: "Máximo de 20 widgets. Revogue algum antigo." };
+  const token = newWidgetToken();
+  await exec(`insert into public.widget_tokens (label, token_hash) values ($1, $2)`, [label, hashWidgetToken(token)]);
+  return { ok: true, token };
+}
+
+export async function mgrRevokeWidgetKey(id: string): Promise<Result> {
+  await requireManager();
+  z.string().uuid().parse(id);
+  await exec(`delete from public.widget_tokens where id = $1`, [id]);
+  return { ok: true };
+}
+
+/** Pré-visualização do que o widget mostra agora. */
+export async function mgrWidgetPreview(): Promise<WidgetAgenda> {
+  await requireManager();
+  return getWidgetAgenda();
 }

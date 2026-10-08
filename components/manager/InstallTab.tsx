@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Download, Share, SquarePlus } from "lucide-react";
 import { Btn, Card, H2 } from "./ui";
 import { PushCard, type usePush } from "./PushSetup";
+import { WidgetSection } from "./WidgetSection";
 
 type InstallEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> };
 
@@ -59,6 +60,9 @@ export function InstallTab({ push }: { push: ReturnType<typeof usePush> }) {
         <p className="text-sm text-muted-foreground">Use o botão “Instalar app” acima, ou o menu ⋮ → “Instalar app” / “Adicionar ao ecrã principal”.</p>
       </Card>
       <PushCard push={push} />
+      <div className="pt-6">
+        <WidgetSection />
+      </div>
       <p className="text-xs text-muted-foreground">Não partilhe a app nem o endereço: quem o tiver ainda precisa da senha, mas é melhor ficar só consigo.</p>
     </div>
   );
