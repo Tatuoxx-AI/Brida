@@ -677,3 +677,7 @@ export const SERVICE_CATEGORY_LABEL: Record<ServiceCategory, string> = {
   sobrancelhas: "Sobrancelhas",
   estetica: "Estética",
 };
+
+/** Ordenações da lista de clientes no painel. */
+export const CLIENT_SORTS = ["nome", "ultima", "visitas"] as const;
+export type MgrClientSort = (typeof CLIENT_SORTS)[number];

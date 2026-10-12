@@ -5,7 +5,9 @@ import { UI } from "@/lib/i18n/ui";
 import { LOCALE_INFO } from "@/lib/i18n/locales";
 import { myAppointments } from "@/actions/client";
 import { one } from "@/lib/db";
+import { ladderFor } from "@/lib/invite";
 import { MyProfile } from "@/components/site/MyProfile";
+import { InviteLadder } from "@/components/site/InviteLadder";
 
 export const metadata: Metadata = { title: "Perfil", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -24,13 +26,14 @@ const rewardIn = (locale: string, reward: string, translated: string | null | un
 export default async function PerfilPage() {
   const [locale, me] = await Promise.all([getLocale(), currentClient()]);
   const t = UI[locale];
-  const [appts, card] = await Promise.all([
+  const [appts, card, ladder] = await Promise.all([
     me ? myAppointments(locale) : Promise.resolve({ upcoming: [], past: [] }),
     one<{ loyalty_stamps_required: number; loyalty_reward: string; name: string; reward_i18n: string | null }>(
       `select loyalty_stamps_required, loyalty_reward, name, content_i18n -> $1 ->> 'loyaltyReward' as reward_i18n
          from public.salon_settings where id = 1`,
       [locale],
     ),
+    me ? ladderFor(me.id) : Promise.resolve(null),
   ]);
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Lisbon" }).format(new Date());
 
@@ -50,6 +53,7 @@ export default async function PerfilPage() {
         intl={LOCALE_INFO[locale].intl}
         today={today}
       />
+      {ladder && <InviteLadder ladder={ladder} />}
     </main>
   );
 }

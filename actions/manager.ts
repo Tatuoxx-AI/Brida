@@ -17,7 +17,7 @@ import { translateObject } from "@/lib/ai/translate";
 import { resolveContent } from "@/lib/site-data";
 import { DEFAULT_CONTENT, NEUTRAL_KEYS, type ContentKey, type Review, type SiteContent, type Stat } from "@/lib/i18n/content";
 import type { Locale } from "@/lib/i18n/locales";
-import type { AppointmentStatus, BusinessHoursRow, NoteKind, ServiceCategory } from "@/types/database";
+import type { AppointmentStatus, BusinessHoursRow, MgrClientSort, NoteKind, ServiceCategory } from "@/types/database";
 
 // Server Actions do painel do gerente. TODAS começam por requireManager().
 
@@ -310,21 +310,96 @@ export type MgrClient = {
   visits: number;
   last_visit: string | null;
   next_visit: string | null;
+  /** código do convite desta cliente (QR na ficha) */
+  invite_code: string | null;
+  /** convidadas já válidas = degrau na escada */
+  invite_level: number;
+  /** desconto disponível agora, em % */
+  discount: number;
+  /** o desconto foi fixado à mão no painel (a escada deixa de lhe tocar) */
+  discount_manual: boolean;
 };
 
-export async function mgrClients(search: string): Promise<MgrClient[]> {
+// CLIENT_SORTS e MgrClientSort vivem em types/database.ts. Um ficheiro
+// "use server" só pode exportar funções async — e nem um `export type … from`
+// passa: o Turbopack recusa o módulo inteiro e o painel fica em branco com
+// "The module has no exports at all". Quem precisar do tipo importa-o de lá.
+
+/**
+ * A busca aguenta acentos, maiúsculas, nome parcial e enganos pequenos.
+ *
+ * `norm_text` tira os acentos (migrations-007) e a `similarity` do pg_trgm
+ * apanha o resto: "joao" encontra "João", "ana costra" encontra "Ana Costa".
+ * O limiar de 0,3 foi o que separou os enganos de digitação das pessoas
+ * diferentes — acima disso perdia "ana" → "Ana Beatriz".
+ */
+const CLIENT_WHERE = `
+  p.role = 'client'
+  and (
+    $1 = ''
+    or public.norm_text(p.name) like '%' || public.norm_text($1) || '%'
+    or similarity(public.norm_text(p.name), public.norm_text($1)) > 0.3
+    or replace(coalesce(p.phone, ''), ' ', '') like '%' || replace($1, ' ', '') || '%'
+    or lower(coalesce(p.email, '')) like '%' || lower($1) || '%'
+  )`;
+
+const CLIENT_FIELDS = `
+  p.id, p.name, p.phone, p.email, p.loyalty_points as stamps,
+  p.invite_code, p.invite_discount_percent as discount, p.invite_discount_manual as discount_manual,
+  public.invite_level(p.id) as invite_level,
+  (select count(*) from public.appointments a where a.client_id = p.id and a.status = 'completed')::int as visits,
+  (select max(start_time) from public.appointments a where a.client_id = p.id and a.status = 'completed') as last_visit,
+  (select min(start_time) from public.appointments a where a.client_id = p.id and a.status in ('pending', 'confirmed') and a.start_time >= now()) as next_visit`;
+
+export async function mgrClients(search: string, sort: MgrClientSort = "nome"): Promise<MgrClient[]> {
   await requireManager();
   const q = search.trim().slice(0, 60);
+  const ordem =
+    sort === "ultima"
+      ? `last_visit desc nulls last, p.name`
+      : sort === "visitas"
+        ? `visits desc, p.name`
+        : `p.name`;
+  // A ordenação entra por interpolação, mas só depois de passar pela lista
+  // branca acima — nunca vem texto do browser para dentro do SQL.
   return query<MgrClient>(
-    `select p.id, p.name, p.phone, p.email, p.loyalty_points as stamps,
-            (select count(*) from public.appointments a where a.client_id = p.id and a.status = 'completed')::int as visits,
-            (select max(start_time) from public.appointments a where a.client_id = p.id and a.status = 'completed') as last_visit,
-            (select min(start_time) from public.appointments a where a.client_id = p.id and a.status in ('pending', 'confirmed') and a.start_time >= now()) as next_visit
+    `select ${CLIENT_FIELDS} from public.profiles p where ${CLIENT_WHERE} order by ${ordem} limit 150`,
+    [q],
+  );
+}
+
+export type MgrSuggestion = {
+  id: string;
+  name: string;
+  /** últimos 3 dígitos do telefone, para distinguir duas "Ana Costa" */
+  phoneTail: string | null;
+  lastVisit: string | null;
+  visits: number;
+};
+
+/**
+ * Sugestões enquanto o dono escreve ou fala um nome.
+ *
+ * Devolve poucas e por ordem de parecença. Os três últimos dígitos do telefone
+ * vão juntos de propósito: num salão há sempre duas Anas, e o nome sozinho não
+ * chega para escolher a certa.
+ */
+export async function mgrSuggestClients(term: string, limit = 6): Promise<MgrSuggestion[]> {
+  await requireManager();
+  const q = term.trim().slice(0, 60);
+  if (q.length < 2) return [];
+  const n = Math.min(Math.max(1, limit), 12);
+  return query<MgrSuggestion>(
+    `select p.id, p.name,
+            nullif(right(regexp_replace(coalesce(p.phone, ''), '\\D', '', 'g'), 3), '') as "phoneTail",
+            (select max(start_time) from public.appointments a where a.client_id = p.id and a.status = 'completed') as "lastVisit",
+            (select count(*) from public.appointments a where a.client_id = p.id and a.status = 'completed')::int as visits
        from public.profiles p
-      where p.role = 'client'
-        and ($1 = '' or p.name ilike '%' || $1 || '%' or replace(coalesce(p.phone, ''), ' ', '') like '%' || replace($1, ' ', '') || '%')
-      order by p.name
-      limit 150`,
+      where ${CLIENT_WHERE}
+      order by similarity(public.norm_text(p.name), public.norm_text($1)) desc,
+               public.norm_text(p.name) like public.norm_text($1) || '%' desc,
+               p.name
+      limit ${n}`,
     [q],
   );
 }
@@ -380,6 +455,90 @@ export async function mgrAdjustStamps(clientId: string, delta: number): Promise<
   } catch {
     return fail("A cliente não tem carimbos suficientes.");
   }
+}
+
+// =============================================================================
+// Convites
+// =============================================================================
+export type MgrInviteSettings = { step: number; max: number; consumable: boolean; steps: number };
+
+export async function mgrInviteSettings(): Promise<MgrInviteSettings> {
+  await requireManager();
+  const s = await one<{ invite_discount_step: number; invite_discount_max: number; invite_discount_consumable: boolean }>(
+    `select invite_discount_step, invite_discount_max, invite_discount_consumable from public.salon_settings where id = 1`,
+  );
+  const step = Number(s?.invite_discount_step ?? 5) || 5;
+  const max = Number(s?.invite_discount_max ?? 50);
+  return { step, max, consumable: !!s?.invite_discount_consumable, steps: Math.max(1, Math.round(max / step)) };
+}
+
+const InviteCfg = z.object({
+  step: z.number().min(1).max(50),
+  max: z.number().min(1).max(100),
+  consumable: z.boolean(),
+});
+
+export async function mgrSaveInviteSettings(raw: z.input<typeof InviteCfg>): Promise<Result> {
+  await requireManager();
+  const p = InviteCfg.safeParse(raw);
+  if (!p.success) return fail("Valores fora dos limites.");
+  if (p.data.step > p.data.max) return fail("O passo não pode ser maior do que o máximo.");
+  await exec(
+    `update public.salon_settings
+        set invite_discount_step = $1, invite_discount_max = $2, invite_discount_consumable = $3
+      where id = 1`,
+    [p.data.step, p.data.max, p.data.consumable],
+  );
+  // Em modo permanente o desconto é o degrau: mudar o passo recalcula todos.
+  if (!p.data.consumable) {
+    await exec(
+      `select public.refresh_invite_discount(p.id) from public.profiles p
+        where p.role = 'client' and not p.invite_discount_manual
+          and exists (select 1 from public.invites i where i.inviter_id = p.id)`,
+    );
+  }
+  return { ok: true };
+}
+
+export type MgrInvite = {
+  id: string;
+  invitee: string;
+  phone: string | null;
+  status: "pending" | "valid" | "blocked";
+  created_at: string;
+  validated_at: string | null;
+};
+
+export async function mgrClientInvites(clientId: string): Promise<MgrInvite[]> {
+  await requireManager();
+  z.string().uuid().parse(clientId);
+  return query<MgrInvite>(
+    `select i.id, pr.name as invitee, pr.phone, i.status, i.created_at, i.validated_at
+       from public.invites i join public.profiles pr on pr.id = i.invitee_id
+      where i.inviter_id = $1
+      order by i.created_at desc`,
+    [clientId],
+  );
+}
+
+/**
+ * Fixa o desconto de uma cliente à mão. `null` devolve-a à escada automática.
+ *
+ * Fica marcado em `invite_discount_manual` para a escada não voltar a
+ * sobrepor-se à decisão do salão na próxima convidada válida.
+ */
+export async function mgrSetClientDiscount(clientId: string, percent: number | null): Promise<Result> {
+  await requireManager();
+  z.string().uuid().parse(clientId);
+  if (percent === null) {
+    await exec(`update public.profiles set invite_discount_manual = false where id = $1`, [clientId]);
+    await exec(`select public.refresh_invite_discount($1)`, [clientId]);
+    return { ok: true };
+  }
+  const p = z.number().min(0).max(100).safeParse(percent);
+  if (!p.success) return fail("O desconto tem de ficar entre 0 e 100.");
+  await exec(`update public.profiles set invite_discount_percent = $2, invite_discount_manual = true where id = $1`, [clientId, p.data]);
+  return { ok: true };
 }
 
 // =============================================================================

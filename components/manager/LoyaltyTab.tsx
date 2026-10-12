@@ -3,9 +3,20 @@
 import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Minus, Plus } from "lucide-react";
-import { mgrAdjustStamps, mgrClients, mgrLoyalty, mgrRedeem, mgrSaveLoyalty, type MgrClient, type MgrRedemption } from "@/actions/manager";
+import {
+  mgrAdjustStamps,
+  mgrClients,
+  mgrInviteSettings,
+  mgrLoyalty,
+  mgrRedeem,
+  mgrSaveInviteSettings,
+  mgrSaveLoyalty,
+  type MgrClient,
+  type MgrInviteSettings,
+  type MgrRedemption,
+} from "@/actions/manager";
 import { BStamp } from "@/components/shared/BStamp";
-import { Btn, Card, Empty, Field, H2, inputCls, useFlash } from "./ui";
+import { Btn, Card, Empty, Field, H2, Toggle, inputCls, useFlash } from "./ui";
 import { LoyaltyCard } from "@/components/shared/LoyaltyCard";
 
 export function LoyaltyTab() {
@@ -26,6 +37,8 @@ export function LoyaltyTab() {
   return (
     <div className="mx-auto max-w-3xl space-y-10">
       <StampsManager required={data.stampsRequired} reward={data.reward} onChange={load} />
+
+      <ConvitesConfig />
 
       <section className="space-y-4">
         <H2>Configuração do cartão</H2>
@@ -164,6 +177,77 @@ function StampsManager({ required, reward, onChange }: { required: number; rewar
           ))}
         </ul>
       )}
+    </section>
+  );
+}
+
+/**
+ * Regras dos convites: quanto vale cada convidada, até onde vai e se o desconto
+ * se gasta ou fica.
+ *
+ * A diferença entre os dois modos é a que a dona vai sentir ao balcão:
+ * permanente é um estatuto (quem trouxe 10 amigas paga sempre menos 50%),
+ * consumível é um prémio (usa-se uma vez e começa de novo).
+ */
+function ConvitesConfig() {
+  const [c, setC] = useState<MgrInviteSettings | null>(null);
+  const flash = useFlash();
+  const load = useCallback(() => {
+    mgrInviteSettings().then(setC);
+  }, []);
+  useEffect(load, [load]);
+  if (!c) return null;
+
+  const degraus = Math.max(1, Math.round(c.max / (c.step || 1)));
+
+  return (
+    <section className="space-y-4">
+      <H2>Convites</H2>
+      <p className="text-sm text-muted-foreground">
+        Cada cliente tem um QR no perfil dela. Quem entrar por aí e <b>concluir a primeira visita</b> faz a anfitriã subir um degrau. O desconto
+        entra sozinho na marcação seguinte.
+      </p>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field
+          label="Por cada convidada (%)"
+          type="number"
+          min={1}
+          max={50}
+          value={c.step}
+          onChange={(e) => setC({ ...c, step: Number(e.target.value) })}
+        />
+        <Field label="Máximo (%)" type="number" min={1} max={100} value={c.max} onChange={(e) => setC({ ...c, max: Number(e.target.value) })} />
+      </div>
+
+      <Card className="flex items-center gap-4">
+        <Toggle on={c.consumable} onChange={(v) => setC({ ...c, consumable: v })} label="Desconto consumível" />
+        <div className="min-w-0 flex-1">
+          <p className="font-medium">{c.consumable ? "Consumível" : "Permanente"}</p>
+          <p className="text-sm text-muted-foreground">
+            {c.consumable
+              ? "O desconto é usado numa marcação e volta a 0%. Se essa marcação for cancelada, o desconto regressa."
+              : "O desconto fica para sempre, e sobe a cada convidada válida."}
+          </p>
+        </div>
+      </Card>
+
+      <p className="text-xs text-muted-foreground">
+        Escada: {Array.from({ length: Math.min(degraus, 12) }, (_, i) => `${Math.min(c.max, (i + 1) * c.step)}%`).join(" · ")}
+        {degraus > 12 && " …"} (trava aos {c.max}%)
+      </p>
+
+      <div className="flex items-center gap-3">
+        <Btn
+          onClick={async () => {
+            flash.show(await mgrSaveInviteSettings({ step: c.step, max: c.max, consumable: c.consumable }));
+            load();
+          }}
+        >
+          Guardar convites
+        </Btn>
+        {flash.node}
+      </div>
     </section>
   );
 }

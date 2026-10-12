@@ -14,7 +14,10 @@ const MAX_TOOL_ROUNDS = 6;
 const WEEKDAYS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 
 let openai: OpenAI | null = null;
-const client = () => (openai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY }));
+// OPENAI_BASE_URL permite apontar para outro fornecedor compatível (ou para um
+// servidor de testes). Vazio = a OpenAI, como sempre.
+const client = () =>
+  (openai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY, baseURL: process.env.OPENAI_BASE_URL || undefined }));
 
 // O catálogo muda pouco: cache curto para não ir à base em cada mensagem.
 let cached: { at: number; prompt: string; timezone: string } | null = null;

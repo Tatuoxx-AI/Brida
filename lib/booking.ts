@@ -4,6 +4,7 @@ import { clientConfirmMessage, requestConfirmation } from "@/lib/whatsapp";
 import { notifyTelegram } from "@/lib/notify";
 import { pushToManagers } from "@/lib/push";
 import { whatsappLink } from "@/lib/format";
+import { attachInvite } from "@/lib/invite";
 import { normalizePhone } from "@/lib/phone";
 import { BOOKING_ERROR_MESSAGES, type AppointmentRow, type AppointmentSource, type BookingErrorCode } from "@/types/database";
 
@@ -69,6 +70,9 @@ export async function resolveClient(
   const sameBirth = !!row.birth_date && row.birth_date === opts.birthDate;
   const verified = row.created || (sameEmail && sameBirth);
   await completeProfile(row.id, opts.email, opts.birthDate);
+  // Veio por um QR de convite? Liga a ficha a quem convidou. Nunca lança e
+  // nunca conta duas vezes — as regras estão no SQL.
+  await attachInvite(row.id);
   return { ok: true, id: row.id, verified };
 }
 
