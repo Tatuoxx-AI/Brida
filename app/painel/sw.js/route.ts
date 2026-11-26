@@ -31,6 +31,8 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const url = (event.notification.data && event.notification.data.url) || BASE + "#agenda";
   event.waitUntil((async () => {
+    // "tel:" (cliente pede atendimento): abre logo o marcador do telefone
+    if (url.startsWith("tel:")) { await self.clients.openWindow(url); return; }
     const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const c of all) {
       if (c.url.includes(BASE)) { await c.focus(); c.navigate(url).catch(() => {}); return; }

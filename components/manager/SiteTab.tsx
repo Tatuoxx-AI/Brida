@@ -19,6 +19,7 @@ import { Btn, Card, Field, H2, TextArea, Toggle, inputCls, useFlash } from "./ui
 import { PhotosSection, addToForm } from "./PhotosSection";
 import { ContentEditor } from "./ContentEditor";
 import { BrandsSection } from "./BrandsSection";
+import { Especialidades } from "./Especialidades";
 
 const DAYS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const ORDER = [1, 2, 3, 4, 5, 6, 0];
@@ -336,6 +337,7 @@ function MemberCard({ member: p, onSaved }: { member: MgrStaff; onSaved: () => v
         </div>
         <Toggle on={p.active} label={`${p.name} ativa`} onChange={async (x) => (flash.show(await mgrSaveStaff({ id: p.id, name: p.name, active: x })), onSaved())} />
       </div>
+      <Especialidades staffId={p.id} nome={p.name.split(" ")[0] ?? p.name} onSaved={onSaved} />
       <div className="grid gap-3 sm:grid-cols-[1fr_1fr_90px]">
         <Field label="Nome" value={f.name} onChange={set("name")} required />
         <Field label="Cargo" value={f.job_title} onChange={set("job_title")} placeholder="Ex.: Colorista" />

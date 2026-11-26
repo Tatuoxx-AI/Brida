@@ -141,6 +141,22 @@ async function clientIdByPhone(phone: string): Promise<string | null> {
   return (await one<{ id: string }>(`select id from public.profiles where phone = $1`, [phone]))?.id ?? null;
 }
 
+/**
+ * Ficha do PRÓPRIO número (o do WhatsApp assinado): só o nome, para a central
+ * não voltar a perguntá-lo. Nunca devolve dados de outro número; sem ficha → null.
+ */
+export async function getClient(ctx: AgentCtx) {
+  const row = await one<{ name: string | null; visits: number }>(
+    `select p.name,
+            (select count(*)::int from public.appointments a where a.client_id = p.id and a.status = 'completed') as visits
+       from public.profiles p
+      where p.phone = $1 and p.role = 'client'`,
+    [ctx.phone],
+  );
+  const nome = row?.name?.trim();
+  return { ok: true, cliente: nome ? { nome, visitas: row!.visits } : null };
+}
+
 // ---------------------------------------------------------------- informação
 
 export async function getInfo() {
@@ -378,9 +394,16 @@ export async function handoff(ctx: AgentCtx, body: z.infer<typeof HandoffBody>) 
   }
   const who = body.nome ? `${body.nome} · ${ctx.phone}` : ctx.phone;
   const [push, tg] = await Promise.allSettled([
-    pushToManagers({ title: "Cliente pede atendimento humano", body: `${who}\n(cliente) ${body.motivo}`, tag: `handoff-${ctx.phone}` }),
+    // tocar na notificação liga logo para a cliente
+    pushToManagers({
+      title: "📞 Cliente pede atendimento — toque para ligar",
+      body: `${who}\n(cliente) ${body.motivo}`,
+      tag: `handoff-${ctx.phone}`,
+      url: `tel:${ctx.phone}`,
+    }),
     notifyTelegram(
       `🙋 Cliente pede atendimento humano no WhatsApp\n${who}\nMotivo (escrito na conversa): ${body.motivo}` +
+        `\n\n📞 Ligar: ${ctx.phone}\n💬 WhatsApp: https://wa.me/${ctx.phone.replace(/\D/g, "")}` +
         (body.resumo ? `\n\n— resumo da conversa (não verificado) —\n${body.resumo}` : ""),
     ),
   ]);

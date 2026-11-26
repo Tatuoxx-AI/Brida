@@ -91,6 +91,11 @@ check(r.status === 200 && !r.data?.marcacoes?.some((m) => m.codigo === codigo), 
 r = await api("POST", `/api/agente/marcacoes/${codigo}/confirmar`);
 check(r.status === 200 && r.data?.marcacao?.estado === "confirmed", "\"CONFIRMAR #código\" da própria cliente → 200", r);
 
+r = await api("GET", "/api/agente/cliente");
+check(r.status === 200 && r.data?.cliente?.nome === "Ana Teste", "a ficha da Ana guarda o nome para a próxima marcação", r);
+r = await api("GET", "/api/agente/cliente", { phone: "+351910000777" });
+check(r.status === 200 && r.data?.cliente === null, "número sem ficha não vê nome nenhum", r);
+
 console.log("5) Segurança: outro telefone não mexe");
 r = await api("POST", `/api/agente/marcacoes/${codigo}/confirmar`, { phone: RUI });
 check(r.status === 404, "Rui não confirma a marcação da Ana → 404", r);
