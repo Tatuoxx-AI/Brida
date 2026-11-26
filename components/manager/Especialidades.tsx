@@ -8,7 +8,8 @@ import { useFlash } from "./ui";
 const OPCOES: Array<{ id: Especialidade; label: string; detalhe: string }> = [
   { id: "cabeleireira", label: "💇‍♀️ Cabeleireira", detalhe: "cortes, coloração, madeixas, alisamento, brushing, tratamentos" },
   { id: "manicure", label: "💅 Manicure", detalhe: "manicure, pedicure, unhas de gel" },
-  { id: "esteticista", label: "✨ Esteticista", detalhe: "sobrancelhas e estética" },
+  { id: "esteticista", label: "✨ Sobrancelhas", detalhe: "design de sobrancelhas" },
+  { id: "depilacao", label: "🌸 Depilação", detalhe: "serviços da categoria Estética (depilação)" },
 ];
 
 /**

@@ -16,7 +16,9 @@ import { requireManager } from "@/lib/manager-auth";
 const ESPECIALIDADES = {
   cabeleireira: { label: "Cabeleireira", categorias: ["corte", "coloracao", "tratamento", "penteado", "barbearia"] },
   manicure: { label: "Manicure", categorias: ["unhas"] },
-  esteticista: { label: "Esteticista", categorias: ["sobrancelhas", "estetica"] },
+  esteticista: { label: "Sobrancelhas", categorias: ["sobrancelhas"] },
+  // serviços de depilação ficam na categoria "Estética" do painel
+  depilacao: { label: "Depilação", categorias: ["estetica"] },
 } as const;
 
 export type Especialidade = keyof typeof ESPECIALIDADES;
@@ -24,7 +26,7 @@ type Result = { ok: true; message?: string } | { ok: false; error: string };
 
 const Input = z.object({
   staffId: z.string().uuid(),
-  especialidade: z.enum(["cabeleireira", "manicure", "esteticista"]),
+  especialidade: z.enum(["cabeleireira", "manicure", "esteticista", "depilacao"]),
   ligar: z.boolean(),
 });
 
