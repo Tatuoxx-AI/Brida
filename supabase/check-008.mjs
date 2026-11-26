@@ -68,8 +68,9 @@ ok(`marcações: Ana #${anaAp.code}, Rui #${ruiAp.code}`);
 
 console.log("3) Listar só as marcações do próprio cliente");
 const lista = (await db.query(`select * from public.agent_client_appointments('${ANA}')`)).rows;
-lista.length === 1 && lista[0].code === anaAp.code && lista[0].services === "Corte 008" && lista[0].staff_name === "Profissional 008"
-  ? ok("Ana vê só a sua marcação, com serviço e profissional")
+lista.length === 1 && lista[0].code === anaAp.code && lista[0].services === "Corte 008" && lista[0].staff_name === "Profissional 008" &&
+  JSON.stringify(lista[0].service_ids) === JSON.stringify([SVC])
+  ? ok("Ana vê só a sua marcação, com serviço, profissional e ids dos serviços")
   : nao(JSON.stringify(lista));
 
 console.log("4) Dono: ninguém mexe na marcação de outro telefone");

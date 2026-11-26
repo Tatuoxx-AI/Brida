@@ -200,7 +200,15 @@ export async function getAvailability(q: z.infer<typeof AvailabilityQuery>) {
 export async function listAppointments(ctx: AgentCtx) {
   const clientId = await clientIdByPhone(ctx.phone);
   if (!clientId) return { ok: true, marcacoes: [] };
-  const rows = await query<{ code: string; start_time: string; status: string; services: string; staff_name: string; total_price: number }>(
+  const rows = await query<{
+    code: string;
+    start_time: string;
+    status: string;
+    services: string;
+    staff_name: string;
+    total_price: number;
+    service_ids: string[] | null;
+  }>(
     `select * from public.agent_client_appointments($1)`,
     [clientId],
   );
@@ -212,6 +220,8 @@ export async function listAppointments(ctx: AgentCtx) {
       quando: fmtWhen(r.start_time),
       estado: r.status,
       servicos: r.services,
+      /** ids dos serviços (o menu do WhatsApp precisa deles para remarcar) */
+      servicoIds: r.service_ids ?? [],
       profissional: r.staff_name,
       total: Number(r.total_price),
     })),

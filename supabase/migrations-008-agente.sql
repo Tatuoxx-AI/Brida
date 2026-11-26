@@ -1,8 +1,10 @@
 -- =============================================================================
 -- 008 · Agente de WhatsApp (central OpenWA) + correção de segurança
 --
--- Só acrescenta. Nada é apagado nem reescrito, por isso pode correr sobre a
--- base que já está em produção, e correr duas vezes não faz mal.
+-- Só acrescenta funções novas (agent_*). A única recriada é agent_client_appointments
+-- (drop + create, para mudar o tipo devolvido), com o revoke logo a seguir.
+-- Pode correr duas vezes. Aplicar com supabase/aplicar-migracao.mjs, que corre tudo
+-- numa transação: se algo falhar, nada fica aplicado pela metade.
 --
 -- A FALHA: cancel_appointment e reschedule_appointment só verificam o dono e o
 -- prazo de cancelamento quando auth.uid() não é nulo. Chamadas pelo servidor
@@ -24,6 +26,8 @@ returns text language sql immutable parallel safe as $$
 $$;
 
 -- Marcações futuras e ativas de UM cliente (o do telefone do WhatsApp).
+-- (drop antes: o tipo devolvido ganhou service_ids e create or replace não muda o tipo)
+drop function if exists public.agent_client_appointments(uuid);
 create or replace function public.agent_client_appointments(p_client uuid)
 returns table (
   code        text,
@@ -32,7 +36,8 @@ returns table (
   status      public.appointment_status,
   services    text,
   staff_name  text,
-  total_price numeric
+  total_price numeric,
+  service_ids uuid[]
 )
 language sql stable security definer set search_path = '' as $$
   select a.code, a.start_time, a.end_time, a.status,
@@ -40,7 +45,10 @@ language sql stable security definer set search_path = '' as $$
                      from public.appointment_services x
                      join public.services sv on sv.id = x.service_id
                     where x.appointment_id = a.id), ''),
-         st.name, a.total_price
+         st.name, a.total_price,
+         coalesce((select array_agg(x.service_id order by x.position)
+                     from public.appointment_services x
+                    where x.appointment_id = a.id), '{}')
     from public.appointments a
     left join public.profiles st on st.id = a.staff_id  -- profissional apagado: a marcação continua a aparecer
    where p_client is not null
@@ -50,6 +58,7 @@ language sql stable security definer set search_path = '' as $$
    order by a.start_time
    limit 20
 $$;
+revoke execute on function public.agent_client_appointments(uuid) from public, anon, authenticated;
 
 -- Tranca e devolve a marcação SE for deste cliente; valida estado e prazo.
 -- Erros: PERMISSION_DENIED (sem cliente), NOT_FOUND (não existe ou é de outra
