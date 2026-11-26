@@ -67,8 +67,12 @@ export function agentSignature(key: string, ts: string, method: string, target: 
   return createHmac("sha256", key).update([ts, method.toUpperCase(), target, phone, sha256hex(body)].join("\n")).digest("hex");
 }
 
-/** Valida assinatura, hora e telefone e lê o corpo. Devolve o pedido ou a resposta de erro. */
-export async function agentRequest(req: Request): Promise<AgentRequest | Response> {
+/**
+ * Valida assinatura, hora e telefone e lê o corpo. Devolve o pedido ou a resposta de erro.
+ * `semTelefone`: pedido de sistema da central (ex.: lembretes), sem cliente — o
+ * cabeçalho do telefone tem de vir VAZIO (é assinado assim) e ctx.phone fica "".
+ */
+export async function agentRequest(req: Request, opts: { semTelefone?: boolean } = {}): Promise<AgentRequest | Response> {
   const key = process.env.AGENT_API_KEY ?? "";
   // em produção a chave tem de ter pelo menos 32 caracteres; em dev aceita qualquer uma (ex.: "dev")
   const strongEnough = process.env.NODE_ENV === "production" ? key.length >= 32 : key.length > 0;
@@ -92,6 +96,11 @@ export async function agentRequest(req: Request): Promise<AgentRequest | Respons
   const expected = agentSignature(key, ts, req.method, canonicalTarget(new URL(req.url)), rawPhone, raw);
   if (!timingSafeEqual(Buffer.from(sig, "hex"), Buffer.from(expected, "hex"))) return unauthorized();
 
+  if (opts.semTelefone) {
+    if (rawPhone !== "") return unauthorized();
+    if (!rateLimit("agente:sistema", 120, 10 * 60_000)) return json({ ok: false, code: "RATE_LIMIT", error: "Demasiados pedidos." }, 429);
+    return { ctx: { phone: "" }, body: null };
+  }
   const phone = normalizePhone(rawPhone);
   if (!phone) return json({ ok: false, code: "INVALID_PHONE", error: "Telefone da cliente em falta ou inválido." }, 400);
   if (!rateLimit(`agente:${phone}`, 60, 10 * 60_000)) {
@@ -241,6 +250,59 @@ export async function listAppointments(ctx: AgentCtx) {
       profissional: r.staff_name,
       total: Number(r.total_price),
     })),
+  };
+}
+
+/**
+ * Marcações para os lembretes automáticos da central (24 h e 2 h antes, e o
+ * agradecimento 4 h depois). Pedido de sistema, sem cliente: devolve só o
+ * necessário para a mensagem — código, hora, estado, serviços, profissional,
+ * primeiro nome e telefone. Janela: começou há até 24 h ou começa nas próximas 25 h.
+ * Fica de fora: canceladas, faltas e as que ainda esperam o pagamento do sinal.
+ */
+export async function listReminders() {
+  const rows = await query<{
+    code: string;
+    start_time: string;
+    created_at: string;
+    status: string;
+    services: string;
+    staff_name: string | null;
+    name: string | null;
+    phone: string | null;
+  }>(
+    `select a.code, a.start_time, a.created_at, a.status::text as status,
+            coalesce((select string_agg(sv.name, ' + ' order by x.position)
+                        from public.appointment_services x
+                        join public.services sv on sv.id = x.service_id
+                       where x.appointment_id = a.id), '') as services,
+            st.name as staff_name,
+            coalesce(c.name, a.guest_name) as name,
+            coalesce(nullif(c.phone, ''), nullif(a.guest_phone, '')) as phone
+       from public.appointments a
+       left join public.profiles c on c.id = a.client_id
+       left join public.profiles st on st.id = a.staff_id
+      where a.start_time between now() - interval '24 hours' and now() + interval '25 hours'
+        and a.status::text not in ('cancelled', 'no_show')
+        and not (a.status = 'pending' and a.hold_expires_at is not null and not a.deposit_paid)
+      order by a.start_time
+      limit 300`,
+  );
+  return {
+    ok: true,
+    marcacoes: rows
+      .map((r) => ({ ...r, phone: r.phone ? normalizePhone(r.phone) : null }))
+      .filter((r) => r.phone)
+      .map((r) => ({
+        codigo: r.code,
+        inicio: r.start_time,
+        criada: r.created_at,
+        estado: r.status,
+        servicos: r.services,
+        profissional: r.staff_name?.trim().split(/\s+/)[0] ?? null,
+        nome: r.name?.trim().split(/\s+/)[0] ?? null,
+        telefone: r.phone,
+      })),
   };
 }
 
