@@ -123,8 +123,9 @@ export async function createBooking(input: {
   if (!ap) return bookingError("");
 
   // Na conversa de WhatsApp o número já está provado e o cliente confirmou ali.
+  // Exceto com sinal por pagar: aí fica "pending" com o prazo (hold) até o pagamento.
   let status: "pending" | "confirmed" = ap.status === "confirmed" ? "confirmed" : "pending";
-  if (status === "pending" && input.source === "whatsapp") {
+  if (status === "pending" && input.source === "whatsapp" && Number(ap.deposit_amount) === 0) {
     await query(`update public.appointments set status = 'confirmed' where id = $1 and status = 'pending'`, [ap.id]);
     status = "confirmed";
   }

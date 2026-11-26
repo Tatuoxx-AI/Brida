@@ -9,7 +9,9 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "db:types": "supabase gen types typescript --project-id \"$SUPABASE_PROJECT_ID\" --schema public > types/database.generated.ts",
-    "db:check": "node supabase/check-schema.mjs"
+    "db:check": "node supabase/check-schema.mjs",
+    "db:check-008": "node supabase/check-008.mjs",
+    "agente:check": "node scripts/check-agente-api.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
